@@ -58,7 +58,7 @@
 </head>
 <body class="font-sans text-ink">
 <div id="root"></div>
-<script type="text/babel" data-presets="react,env">
+<script type="text/plain" id="app-source">
 
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
@@ -2029,6 +2029,30 @@ function ModuleDisabled({ name }) {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
 
+</script>
+<script>
+  // Babel Standalone's auto-scan defaults the React preset to the "automatic" JSX
+  // runtime, which emits `import` statements. A plain inline script isn't a module,
+  // so that would throw "Cannot use import statement outside a module" and leave a
+  // blank page. We transform explicitly with the classic runtime to avoid that.
+  (function () {
+    var source = document.getElementById('app-source').textContent;
+    try {
+      var result = Babel.transform(source, {
+        presets: [['react', { runtime: 'classic' }]],
+      }).code;
+      var script = document.createElement('script');
+      script.textContent = result;
+      document.body.appendChild(script);
+    } catch (err) {
+      document.getElementById('root').innerHTML =
+        '<div style="max-width:520px;margin:80px auto;padding:24px;font-family:sans-serif;border:1px solid #ddd;border-radius:12px;">' +
+        '<h2 style="margin-top:0;">Something went wrong loading the app</h2>' +
+        '<p style="color:#666;font-size:14px;">' + (err && err.message ? err.message : String(err)) + '</p>' +
+        '<p style="color:#999;font-size:12px;">Open your browser console for the full error.</p></div>';
+      console.error(err);
+    }
+  })();
 </script>
 </body>
 </html>
