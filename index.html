@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Basepoint — Business Operations Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          ink: { DEFAULT: '#16241D', soft: '#2C3B32', muted: '#57645B' },
+          paper: { DEFAULT: '#F5F6F1', raised: '#FFFFFF', dim: '#ECEEE6' },
+          brass: { DEFAULT: '#C08829', dark: '#9C6D1E', light: '#F0D9A6' },
+          moss: { DEFAULT: '#2F7A54', light: '#DCEFE3' },
+          clay: { DEFAULT: '#B5432E', light: '#F5DCD6' },
+          line: '#DEE2D7',
+        },
+        fontFamily: {
+          display: ['Fraunces', 'serif'],
+          sans: ['"IBM Plex Sans"', 'sans-serif'],
+          mono: ['"IBM Plex Mono"', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  html, body { background: #F5F6F1; }
+  body.dark-mode { background: #12180F; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #C7CDBE; border-radius: 4px; }
+  .dark-mode ::-webkit-scrollbar-thumb { background: #3A4636; }
+  .tabular { font-variant-numeric: tabular-nums; }
+  .receipt-edge {
+    background-image: radial-gradient(circle at 6px 6px, transparent 5px, white 5.5px);
+    background-size: 12px 12px;
+    background-position: -6px 0;
+  }
+  .dark-mode .receipt-edge {
+    background-image: radial-gradient(circle at 6px 6px, transparent 5px, #1B241A 5.5px);
+  }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .rise-in { animation: riseIn 0.25s ease-out; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .toast-in { animation: toastIn 0.2s ease-out; }
+  input:focus, select:focus, textarea:focus, button:focus-visible {
+    outline: 2px solid #C08829; outline-offset: 1px;
+  }
+</style>
+</head>
+<body class="font-sans text-ink">
+<div id="root"></div>
+<script type="text/babel" data-presets="react,env">
+
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+/* ============================== UTILITIES ============================== */
+
+const uid = (prefix) => prefix + '_' + Math.random().toString(36).slice(2, 9);
+
+const CURRENCIES = {
+  USD: { symbol: '$', name: 'US Dollar' },
+  KES: { symbol: 'KSh', name: 'Kenyan Shilling' },
+  EUR: { symbol: '€', name: 'Euro' },
+  GBP: { symbol: '£', name: 'British Pound' },
+  NGN: { symbol: '₦', name: 'Nigerian Naira' },
+  ZAR: { symbol: 'R', name: 'South African Rand' },
+  GHS: { symbol: 'GH₵', name: 'Ghanaian Cedi' },
+  INR: { symbol: '₹', name: 'Indian Rupee' },
+};
+
+function fmtMoney(amount, currencyCode) {
+  const c = CURRENCIES[currencyCode] || CURRENCIES.USD;
+  const n = Number(amount) || 0;
+  return c.symbol + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtDate(d) {
+  const date = typeof d === 'string' ? new Date(d) : d;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtDateTime(d) {
+  const date = typeof d === 'string' ? new Date(d) : d;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' +
+    date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+function isoDaysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString();
+}
+function dayKey(iso) {
+  return new Date(iso).toISOString().slice(0, 10);
+}
+
+function downloadCSV(filename, rows) {
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const escape = (v) => {
+    const s = String(v === undefined || v === null ? '' : v);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function initials(name) {
+  return (name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+/* ============================== ICONS ============================== */
+/* Minimal hand-drawn line icon set, single stroke style, tuned to the app's ledger motif */
+
+const Icon = ({ path, size = 18, strokeWidth = 1.7, className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {path}
+  </svg>
+);
+
+const IconDashboard = (p) => <Icon {...p} path={<><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></>} />;
+const IconPOS = (p) => <Icon {...p} path={<><rect x="2.5" y="6" width="19" height="13" rx="1.5"/><path d="M2.5 10.5h19"/><path d="M7 14.5h3"/><path d="M7 3.5v3"/><path d="M17 3.5v3"/></>} />;
+const IconBox = (p) => <Icon {...p} path={<><path d="M3 8l9-5 9 5-9 5-9-5z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/></>} />;
+const IconTruck = (p) => <Icon {...p} path={<><rect x="1.5" y="7" width="12" height="9" rx="1"/><path d="M13.5 10h4l3 3v3h-7z"/><circle cx="5.5" cy="18" r="1.6"/><circle cx="16.5" cy="18" r="1.6"/></>} />;
+const IconUsers = (p) => <Icon {...p} path={<><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="8.5" r="2.6"/><path d="M16 14.2c2.7.4 5 2.4 5 5.8"/></>} />;
+const IconUser = (p) => <Icon {...p} path={<><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-4.2 3.3-6.8 7.5-6.8s7.5 2.6 7.5 6.8"/></>} />;
+const IconWallet = (p) => <Icon {...p} path={<><path d="M3 7.5A2.5 2.5 0 015.5 5h11A2.5 2.5 0 0119 7.5v10a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 013 17.5v-10z"/><path d="M15.5 12.5a1.6 1.6 0 100 3.2 1.6 1.6 0 000-3.2z"/><path d="M19 10h-4a2 2 0 000 4h4"/></>} />;
+const IconChart = (p) => <Icon {...p} path={<><path d="M4 20V10"/><path d="M11 20V4"/><path d="M18 20v-7"/><path d="M2.5 20.5h19"/></>} />;
+const IconSettings = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V19.5a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.55-1H3.5a2 2 0 110-4h.09a1.7 1.7 0 001.55-1 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H9.6a1.7 1.7 0 001-1.55V3.5a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87v.11a1.7 1.7 0 001.55 1h.09a2 2 0 110 4h-.09a1.7 1.7 0 00-1.55 1z"/></>} />;
+const IconSearch = (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></>} />;
+const IconPlus = (p) => <Icon {...p} path={<><path d="M12 5v14"/><path d="M5 12h14"/></>} />;
+const IconMinus = (p) => <Icon {...p} path={<path d="M5 12h14"/>} />;
+const IconX = (p) => <Icon {...p} path={<><path d="M18 6L6 18"/><path d="M6 6l12 12"/></>} />;
+const IconChevronDown = (p) => <Icon {...p} path={<path d="M6 9l6 6 6-6"/>} />;
+const IconChevronRight = (p) => <Icon {...p} path={<path d="M9 6l6 6-6 6"/>} />;
+const IconBell = (p) => <Icon {...p} path={<><path d="M6 8.5a6 6 0 0112 0c0 4.2 1.5 5.5 2 6.5H4c.5-1 2-2.3 2-6.5z"/><path d="M9.5 18a2.5 2.5 0 005 0"/></>} />;
+const IconMenu = (p) => <Icon {...p} path={<><path d="M3.5 6.5h17"/><path d="M3.5 12h17"/><path d="M3.5 17.5h17"/></>} />;
+const IconSun = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.6 4.6l1.7 1.7M17.7 17.7l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.6 19.4l1.7-1.7M17.7 6.3l1.7-1.7"/></>} />;
+const IconMoon = (p) => <Icon {...p} path={<path d="M20 14.5A8.5 8.5 0 119.5 4a7 7 0 0010.5 10.5z"/>} />;
+const IconAlert = (p) => <Icon {...p} path={<><path d="M12 3.5L2 20.5h20L12 3.5z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.15" fill="currentColor"/></>} />;
+const IconCheck = (p) => <Icon {...p} path={<path d="M4 12.5l5.5 5.5L20 6"/>} />;
+const IconTrash = (p) => <Icon {...p} path={<><path d="M4 7h16"/><path d="M9 7V4.5A1.5 1.5 0 0110.5 3h3A1.5 1.5 0 0115 4.5V7"/><path d="M6.5 7l1 13h9l1-13"/></>} />;
+const IconEdit = (p) => <Icon {...p} path={<><path d="M4 20l.9-4L17 3.9a1.8 1.8 0 012.6 0l.5.5a1.8 1.8 0 010 2.6L8 19l-4 1z"/><path d="M14 6.5l3.5 3.5"/></>} />;
+const IconPrint = (p) => <Icon {...p} path={<><rect x="5" y="8.5" width="14" height="7" rx="1"/><path d="M7 8.5V4h10v4.5"/><path d="M7 15.5V20h10v-4.5"/></>} />;
+const IconArrowUp = (p) => <Icon {...p} path={<><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></>} />;
+const IconArrowDown = (p) => <Icon {...p} path={<><path d="M12 5v14"/><path d="M18 13l-6 6-6-6"/></>} />;
+const IconLogout = (p) => <Icon {...p} path={<><path d="M9 21H5.5A1.5 1.5 0 014 19.5v-15A1.5 1.5 0 015.5 3H9"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></>} />;
+const IconClock = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></>} />;
+const IconDownload = (p) => <Icon {...p} path={<><path d="M12 3v13"/><path d="M7 11l5 5 5-5"/><path d="M4.5 20.5h15"/></>} />;
+const IconLayers = (p) => <Icon {...p} path={<><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17.5l9 5 9-5"/></>} />;
+const IconReceipt = (p) => <Icon {...p} path={<><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.6V3z"/><path d="M9 8h6"/><path d="M9 12h6"/></>} />;
+
+/* ============================== SHARED UI ============================== */
+
+function Button({ children, variant = 'primary', size = 'md', className = '', icon, ...rest }) {
+  const base = 'inline-flex items-center justify-center gap-1.5 font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap';
+  const sizes = { sm: 'px-2.5 py-1.5 text-sm', md: 'px-3.5 py-2 text-sm', lg: 'px-5 py-2.5 text-[15px]' };
+  const variants = {
+    primary: 'bg-ink text-paper hover:bg-ink-soft dark-mode:bg-brass dark-mode:text-ink',
+    brass: 'bg-brass text-white hover:bg-brass-dark',
+    outline: 'border border-line text-ink hover:bg-paper-dim bg-white',
+    ghost: 'text-ink-muted hover:bg-paper-dim',
+    danger: 'bg-clay text-white hover:bg-clay/90',
+    subtle: 'bg-paper-dim text-ink hover:bg-line',
+  };
+  return (
+    <button className={base + ' ' + sizes[size] + ' ' + variants[variant] + ' ' + className} {...rest}>
+      {icon}{children}
+    </button>
+  );
+}
+
+function Card({ children, className = '', title, subtitle, action, padded = true }) {
+  return (
+    <div className={'bg-paper-raised border border-line rounded-xl ' + className}>
+      {(title || action) && (
+        <div className="flex items-start justify-between px-5 pt-4 pb-2">
+          <div>
+            {title && <h3 className="font-display text-[17px] font-medium text-ink">{title}</h3>}
+            {subtitle && <p className="text-xs text-ink-muted mt-0.5">{subtitle}</p>}
+          </div>
+          {action}
+        </div>
+      )}
+      <div className={padded ? 'p-5' + (title ? ' pt-3' : '') : ''}>{children}</div>
+    </div>
+  );
+}
+
+function Badge({ children, tone = 'default' }) {
+  const tones = {
+    default: 'bg-paper-dim text-ink-muted',
+    good: 'bg-moss-light text-moss',
+    warn: 'bg-brass-light text-brass-dark',
+    bad: 'bg-clay-light text-clay',
+    brand: 'bg-ink text-paper',
+  };
+  return <span className={'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ' + tones[tone]}>{children}</span>;
+}
+
+function Input({ label, hint, className = '', ...rest }) {
+  return (
+    <label className="block">
+      {label && <span className="block text-xs font-medium text-ink-muted mb-1">{label}</span>}
+      <input className={'w-full px-3 py-2 rounded-md border border-line bg-white text-sm text-ink placeholder:text-ink-muted/60 ' + className} {...rest} />
+      {hint && <span className="block text-xs text-ink-muted mt-1">{hint}</span>}
+    </label>
+  );
+}
+
+function Select({ label, options, className = '', ...rest }) {
+  return (
+    <label className="block">
+      {label && <span className="block text-xs font-medium text-ink-muted mb-1">{label}</span>}
+      <select className={'w-full px-3 py-2 rounded-md border border-line bg-white text-sm text-ink ' + className} {...rest}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function Textarea({ label, className = '', ...rest }) {
+  return (
+    <label className="block">
+      {label && <span className="block text-xs font-medium text-ink-muted mb-1">{label}</span>}
+      <textarea className={'w-full px-3 py-2 rounded-md border border-line bg-white text-sm text-ink ' + className} {...rest} />
+    </label>
+  );
+}
+
+function Modal({ open, onClose, title, children, width = 'max-w-lg', footer }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className={'relative bg-paper-raised rounded-xl border border-line shadow-2xl w-full ' + width + ' max-h-[88vh] flex flex-col rise-in'}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h3 className="font-display text-lg font-medium">{title}</h3>
+          <button onClick={onClose} className="text-ink-muted hover:text-ink p-1 rounded hover:bg-paper-dim"><IconX size={18} /></button>
+        </div>
+        <div className="px-5 py-4 overflow-y-auto">{children}</div>
+        {footer && <div className="px-5 py-3.5 border-t border-line flex justify-end gap-2">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon, title, message, action }) {
+  return (
+    <div className="flex flex-col items-center text-center py-14 px-6">
+      <div className="w-12 h-12 rounded-full bg-paper-dim flex items-center justify-center text-ink-muted mb-4">{icon}</div>
+      <h4 className="font-display text-lg font-medium text-ink mb-1">{title}</h4>
+      <p className="text-sm text-ink-muted max-w-sm mb-5">{message}</p>
+      {action}
+    </div>
+  );
+}
+
+function Toast({ toasts }) {
+  return (
+    <div className="fixed top-5 right-5 z-[100] flex flex-col gap-2 items-end">
+      {toasts.map(t => (
+        <div key={t.id} className={'toast-in px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium border flex items-center gap-2 ' +
+          (t.tone === 'bad' ? 'bg-clay text-white border-clay' : t.tone === 'warn' ? 'bg-brass text-white border-brass' : 'bg-ink text-paper border-ink')}>
+          {t.tone === 'bad' ? <IconAlert size={15} /> : <IconCheck size={15} />}
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConfirmBar({ children }) {
+  return <div className="flex justify-end gap-2">{children}</div>;
+}
+
+function StatCard({ label, value, delta, deltaGood, sub }) {
+  return (
+    <div className="bg-paper-raised border border-line rounded-xl p-4">
+      <p className="text-xs font-medium text-ink-muted">{label}</p>
+      <p className="font-display text-2xl font-semibold text-ink mt-1 tabular">{value}</p>
+      <div className="flex items-center gap-1.5 mt-1.5">
+        {delta !== undefined && (
+          <span className={'inline-flex items-center gap-0.5 text-xs font-medium ' + (deltaGood ? 'text-moss' : 'text-clay')}>
+            {deltaGood ? <IconArrowUp size={12} /> : <IconArrowDown size={12} />} {delta}
+          </span>
+        )}
+        {sub && <span className="text-xs text-ink-muted">{sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+/* Small inline SVG bar chart, dependency-free */
+function BarChart({ data, height = 160, formatValue, barColor = '#16241D' }) {
+  const max = Math.max(1, ...data.map(d => d.value));
+  const w = 100 / data.length;
+  return (
+    <div>
+      <div className="flex items-end gap-1" style={{ height }}>
+        {data.map((d, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+            <div className="text-[10px] text-ink-muted mb-1 opacity-0 group-hover:opacity-100 transition-opacity tabular whitespace-nowrap">
+              {formatValue ? formatValue(d.value) : d.value}
+            </div>
+            <div className="w-full rounded-t-sm transition-all" style={{ height: (d.value / max * 100) + '%', minHeight: 2, background: barColor, opacity: 0.85 }} />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-1 mt-1.5">
+        {data.map((d, i) => <div key={i} className="flex-1 text-center text-[10px] text-ink-muted truncate">{d.label}</div>)}
+      </div>
+    </div>
+  );
+}
+
+function HBarList({ data, formatValue, color = '#C08829' }) {
+  const max = Math.max(1, ...data.map(d => d.value));
+  return (
+    <div className="space-y-2.5">
+      {data.map((d, i) => (
+        <div key={i}>
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-ink font-medium truncate pr-2">{d.label}</span>
+            <span className="text-ink-muted tabular shrink-0">{formatValue ? formatValue(d.value) : d.value}</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-paper-dim overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: (d.value / max * 100) + '%', background: color }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================== SEED DATA ============================== */
+
+const ROLES = [
+  { key: 'owner', label: 'Owner' },
+  { key: 'manager', label: 'Manager' },
+  { key: 'cashier', label: 'Cashier' },
+  { key: 'inventory_manager', label: 'Inventory Manager' },
+  { key: 'accountant', label: 'Accountant' },
+];
+
+const NAV_ITEMS = [
+  { key: 'dashboard', label: 'Dashboard', icon: IconDashboard, module: null, roles: ['owner','manager','cashier','inventory_manager','accountant'] },
+  { key: 'pos', label: 'Point of Sale', icon: IconPOS, module: 'pos', roles: ['owner','manager','cashier'] },
+  { key: 'products', label: 'Products & Inventory', icon: IconBox, module: 'inventory', roles: ['owner','manager','inventory_manager'] },
+  { key: 'purchases', label: 'Purchases & Suppliers', icon: IconTruck, module: 'purchasing', roles: ['owner','manager','inventory_manager'] },
+  { key: 'customers', label: 'Customers', icon: IconUsers, module: 'customers', roles: ['owner','manager','cashier'] },
+  { key: 'employees', label: 'Employees', icon: IconUser, module: 'employees', roles: ['owner','manager'] },
+  { key: 'expenses', label: 'Expenses', icon: IconWallet, module: 'expenses', roles: ['owner','manager','accountant'] },
+  { key: 'reports', label: 'Reports', icon: IconChart, module: 'reports', roles: ['owner','manager','accountant'] },
+  { key: 'settings', label: 'Settings', icon: IconSettings, module: null, roles: ['owner'] },
+];
+
+const BUSINESS_TYPES = [
+  { value: 'cafe', label: 'Café / Coffee Shop' },
+  { value: 'restaurant', label: 'Restaurant / Bar' },
+  { value: 'retail', label: 'Retail Shop' },
+  { value: 'supermarket', label: 'Supermarket' },
+  { value: 'pharmacy', label: 'Pharmacy' },
+  { value: 'salon', label: 'Salon / Spa' },
+  { value: 'service', label: 'Service Business' },
+  { value: 'wholesale', label: 'Wholesaler / Distributor' },
+];
+
+const DEMO_CATEGORIES = ['Beverages', 'Pastries', 'Snacks', 'Merchandise'];
+
+const DEMO_PRODUCTS_SEED = [
+  ['Espresso', 'Beverages', 1.2, 3.0, 'cup'],
+  ['Cappuccino', 'Beverages', 1.6, 4.0, 'cup'],
+  ['Flat White', 'Beverages', 1.6, 4.2, 'cup'],
+  ['Iced Latte', 'Beverages', 1.8, 4.5, 'cup'],
+  ['Filter Coffee', 'Beverages', 0.9, 2.75, 'cup'],
+  ['Hot Chocolate', 'Beverages', 1.7, 4.0, 'cup'],
+  ['Croissant', 'Pastries', 1.1, 3.25, 'pc'],
+  ['Blueberry Muffin', 'Pastries', 1.3, 3.5, 'pc'],
+  ['Cinnamon Roll', 'Pastries', 1.4, 3.75, 'pc'],
+  ['Banana Bread Slice', 'Pastries', 1.0, 3.0, 'pc'],
+  ['Chocolate Chip Cookie', 'Snacks', 0.6, 2.25, 'pc'],
+  ['Granola Bar', 'Snacks', 0.8, 2.5, 'pc'],
+  ['Sparkling Water', 'Snacks', 0.7, 2.0, 'bottle'],
+  ['House Blend Beans 250g', 'Merchandise', 4.5, 11.0, 'bag'],
+  ['Ceramic Mug', 'Merchandise', 3.2, 9.0, 'pc'],
+  ['Tote Bag', 'Merchandise', 2.5, 8.0, 'pc'],
+];
+
+function seedDemoData(currency) {
+  const products = DEMO_PRODUCTS_SEED.map(([name, category, cost, price, unit], i) => ({
+    id: uid('prod'),
+    name, category, cost, price, unit,
+    sku: 'SKU' + (1000 + i),
+    barcode: '89000' + (10000 + i),
+    stock: category === 'Merchandise' ? 18 + (i % 5) * 3 : 60 + (i % 6) * 10,
+    reorderLevel: category === 'Merchandise' ? 8 : 15,
+    supplierId: null,
+    status: 'active',
+  }));
+  const suppliers = [
+    { id: uid('sup'), name: 'Highland Roasters Co.', contact: 'Diana Mwangi', phone: '+254 700 111 222', email: 'orders@highlandroasters.co', balance: 240 },
+    { id: uid('sup'), name: 'Sunrise Bakery Supplies', contact: 'Tom Achieng', phone: '+254 700 333 444', email: 'sales@sunrisebakery.co', balance: 0 },
+    { id: uid('sup'), name: 'Packline Merchandise Ltd', contact: 'Grace Wanjiru', phone: '+254 700 555 666', email: 'hello@packline.co', balance: 95 },
+  ];
+  products.forEach((p, i) => { p.supplierId = suppliers[i % suppliers.length].id; });
+
+  const customers = [
+    { id: uid('cust'), name: 'Amina Yusuf', phone: '+254 701 222 333', email: 'amina.y@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(80) },
+    { id: uid('cust'), name: 'Brian Otieno', phone: '+254 702 333 444', email: 'brian.o@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(65) },
+    { id: uid('cust'), name: 'Cynthia Wafula', phone: '+254 703 444 555', email: 'cynthia.w@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(40) },
+    { id: uid('cust'), name: 'David Kimani', phone: '+254 704 555 666', email: 'david.k@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(20) },
+    { id: uid('cust'), name: 'Faith Nekesa', phone: '+254 705 666 777', email: 'faith.n@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(10) },
+    { id: uid('cust'), name: 'Walk-in Customer', phone: '', email: '', totalSpent: 0, balance: 0, joined: isoDaysAgo(365), isWalkIn: true },
+  ];
+
+  const employees = [
+    { id: uid('emp'), name: 'You (Owner)', role: 'owner', email: 'owner@urbancoffee.com', status: 'active', joined: isoDaysAgo(365) },
+    { id: uid('emp'), name: 'Peter Njoroge', role: 'manager', email: 'peter@urbancoffee.com', status: 'active', joined: isoDaysAgo(200) },
+    { id: uid('emp'), name: 'Lucy Chebet', role: 'cashier', email: 'lucy@urbancoffee.com', status: 'active', joined: isoDaysAgo(120) },
+    { id: uid('emp'), name: 'Samuel Kiptoo', role: 'cashier', email: 'samuel@urbancoffee.com', status: 'active', joined: isoDaysAgo(60) },
+    { id: uid('emp'), name: 'Ruth Adhiambo', role: 'inventory_manager', email: 'ruth@urbancoffee.com', status: 'active', joined: isoDaysAgo(150) },
+    { id: uid('emp'), name: 'Moses Kamau', role: 'accountant', email: 'moses@urbancoffee.com', status: 'active', joined: isoDaysAgo(90) },
+  ];
+
+  let sales = [];
+  let inventoryMovements = [];
+  const paymentMethods = ['Cash', 'Card', 'Mobile Money'];
+  const cashierPool = employees.filter(e => e.role === 'cashier' || e.role === 'owner' || e.role === 'manager');
+
+  for (let day = 13; day >= 0; day--) {
+    const numSales = 5 + Math.floor(Math.random() * 9);
+    for (let s = 0; s < numSales; s++) {
+      const numItems = 1 + Math.floor(Math.random() * 3);
+      const items = [];
+      let subtotal = 0;
+      for (let it = 0; it < numItems; it++) {
+        const prod = products[Math.floor(Math.random() * products.length)];
+        const qty = 1 + Math.floor(Math.random() * 3);
+        const lineTotal = prod.price * qty;
+        subtotal += lineTotal;
+        items.push({ productId: prod.id, name: prod.name, qty, price: prod.price, total: lineTotal });
+      }
+      const tax = subtotal * 0.08;
+      const total = subtotal + tax;
+      const cust = Math.random() > 0.4 ? customers[Math.floor(Math.random() * (customers.length - 1))] : customers[customers.length - 1];
+      const emp = cashierPool[Math.floor(Math.random() * cashierPool.length)];
+      const saleDate = new Date(isoDaysAgo(day));
+      saleDate.setHours(8 + Math.floor(Math.random() * 10), Math.floor(Math.random() * 60));
+      const sale = {
+        id: uid('sale'), date: saleDate.toISOString(), items, subtotal, tax, discount: 0, total,
+        paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+        customerId: cust.id, customerName: cust.name, employeeId: emp.id, employeeName: emp.name, status: 'completed',
+      };
+      sales.push(sale);
+      cust.totalSpent += total;
+      items.forEach(it => {
+        const p = products.find(pp => pp.id === it.productId);
+        if (p) {
+          const prev = p.stock; p.stock = Math.max(0, p.stock - it.qty);
+          inventoryMovements.push({ id: uid('mov'), date: sale.date, productId: p.id, productName: p.name, type: 'sale', qtyChange: -it.qty, prevQty: prev, newQty: p.stock, reason: 'Sale ' + sale.id.slice(-6), ref: sale.id, user: emp.name });
+        }
+      });
+    }
+  }
+  sales.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const expenseCats = ['Rent', 'Electricity', 'Salaries', 'Supplies', 'Marketing', 'Repairs'];
+  const expenses = [];
+  for (let i = 0; i < 10; i++) {
+    const cat = expenseCats[Math.floor(Math.random() * expenseCats.length)];
+    expenses.push({
+      id: uid('exp'), date: isoDaysAgo(Math.floor(Math.random() * 20)), category: cat,
+      amount: cat === 'Rent' ? 800 : cat === 'Salaries' ? 1200 : 40 + Math.floor(Math.random() * 160),
+      paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+      note: cat + ' — monthly', employeeName: employees[1].name,
+    });
+  }
+
+  const purchases = [
+    { id: uid('po'), date: isoDaysAgo(6), supplierId: suppliers[0].id, supplierName: suppliers[0].name, status: 'received',
+      items: [{ productId: products[13].id, name: products[13].name, qty: 20, cost: products[13].cost }], total: 20 * products[13].cost },
+    { id: uid('po'), date: isoDaysAgo(2), supplierId: suppliers[1].id, supplierName: suppliers[1].name, status: 'pending',
+      items: [{ productId: products[6].id, name: products[6].name, qty: 50, cost: products[6].cost }, { productId: products[7].id, name: products[7].name, qty: 40, cost: products[7].cost }],
+      total: 50 * products[6].cost + 40 * products[7].cost },
+  ];
+
+  return { products, suppliers, customers, employees, sales, inventoryMovements, expenses, purchases, paymentMethods };
+}
+
+/* ============================== ONBOARDING ============================== */
+
+function Onboarding({ onComplete }) {
+  const [step, setStep] = useState(0);
+  const [data, setData] = useState({
+    name: '', type: 'cafe', country: 'Kenya', currency: 'KES', timezone: 'Africa/Nairobi',
+    primaryColor: '#16241D', theme: 'light', locations: 'single', taxRate: 8, registers: 1,
+    dataChoice: 'demo',
+  });
+  const steps = ['Business', 'Brand', 'Operations', 'Data', 'Finish'];
+  const update = (k, v) => setData(d => ({ ...d, [k]: v }));
+
+  const canNext = () => {
+    if (step === 0) return data.name.trim().length > 0;
+    return true;
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-paper px-4 py-10">
+      <div className="w-full max-w-xl">
+        <div className="flex items-center justify-center gap-2 mb-8">
+          {steps.map((s, i) => (
+            <React.Fragment key={s}>
+              <div className={'flex items-center gap-2 ' + (i <= step ? 'text-ink' : 'text-ink-muted/50')}>
+                <div className={'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-medium border ' +
+                  (i < step ? 'bg-ink text-paper border-ink' : i === step ? 'border-ink text-ink' : 'border-line')}>
+                  {i < step ? <IconCheck size={12} /> : i + 1}
+                </div>
+                <span className="text-xs font-medium hidden sm:inline">{s}</span>
+              </div>
+              {i < steps.length - 1 && <div className="w-6 sm:w-10 h-px bg-line" />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="bg-paper-raised border border-line rounded-2xl p-8 rise-in">
+          {step === 0 && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="font-display text-2xl font-semibold text-ink">Let's set up your business</h2>
+                <p className="text-sm text-ink-muted mt-1">This takes about two minutes. You can change anything later in Settings.</p>
+              </div>
+              <Input label="Business name" placeholder="e.g. Urban Coffee" value={data.name} onChange={e => update('name', e.target.value)} autoFocus />
+              <Select label="Business type" options={BUSINESS_TYPES} value={data.type} onChange={e => update('type', e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Country" value={data.country} onChange={e => update('country', e.target.value)} />
+                <Select label="Currency" value={data.currency} onChange={e => update('currency', e.target.value)}
+                  options={Object.entries(CURRENCIES).map(([k, v]) => ({ value: k, label: k + ' — ' + v.name }))} />
+              </div>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="font-display text-2xl font-semibold text-ink">Brand your business</h2>
+                <p className="text-sm text-ink-muted mt-1">A little identity goes a long way on receipts and dashboards.</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center text-white font-display text-xl font-semibold shrink-0" style={{ background: data.primaryColor }}>
+                  {initials(data.name) || '?'}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Logo mark</p>
+                  <p className="text-xs text-ink-muted">Auto-generated from your business name. You can upload a real logo later in Settings.</p>
+                </div>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-ink-muted mb-2">Primary color</span>
+                <div className="flex gap-2 flex-wrap">
+                  {['#16241D', '#C08829', '#2F5C8A', '#7A2F5C', '#2F7A54', '#B5432E'].map(c => (
+                    <button key={c} onClick={() => update('primaryColor', c)}
+                      className={'w-8 h-8 rounded-full border-2 ' + (data.primaryColor === c ? 'border-ink' : 'border-transparent')}
+                      style={{ background: c }} aria-label={c} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-ink-muted mb-2">Theme</span>
+                <div className="flex gap-2">
+                  <button onClick={() => update('theme', 'light')} className={'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md border text-sm ' + (data.theme === 'light' ? 'border-ink bg-paper-dim' : 'border-line')}><IconSun size={15}/> Light</button>
+                  <button onClick={() => update('theme', 'dark')} className={'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md border text-sm ' + (data.theme === 'dark' ? 'border-ink bg-paper-dim' : 'border-line')}><IconMoon size={15}/> Dark</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="font-display text-2xl font-semibold text-ink">How do you operate?</h2>
+                <p className="text-sm text-ink-muted mt-1">This shapes your defaults — nothing is locked in.</p>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-ink-muted mb-2">Locations</span>
+                <div className="flex gap-2">
+                  <button onClick={() => update('locations', 'single')} className={'flex-1 py-2.5 rounded-md border text-sm ' + (data.locations === 'single' ? 'border-ink bg-paper-dim' : 'border-line')}>Single location</button>
+                  <button onClick={() => update('locations', 'multi')} className={'flex-1 py-2.5 rounded-md border text-sm ' + (data.locations === 'multi' ? 'border-ink bg-paper-dim' : 'border-line')}>Multiple locations</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Default tax rate (%)" type="number" value={data.taxRate} onChange={e => update('taxRate', Number(e.target.value))} />
+                <Input label="Number of registers" type="number" min="1" value={data.registers} onChange={e => update('registers', Number(e.target.value))} />
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="font-display text-2xl font-semibold text-ink">Add your data</h2>
+                <p className="text-sm text-ink-muted mt-1">See the platform in action immediately, or start with a clean slate.</p>
+              </div>
+              <button onClick={() => update('dataChoice', 'demo')} className={'w-full text-left p-4 rounded-lg border flex items-start gap-3 ' + (data.dataChoice === 'demo' ? 'border-ink bg-paper-dim' : 'border-line')}>
+                <div className={'w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 ' + (data.dataChoice === 'demo' ? 'border-ink bg-ink' : 'border-line')} />
+                <div>
+                  <p className="text-sm font-medium">Start with demo data</p>
+                  <p className="text-xs text-ink-muted mt-0.5">Loads a sample café business — products, sales, customers, and reports — so you can explore every module right away.</p>
+                </div>
+              </button>
+              <button onClick={() => update('dataChoice', 'blank')} className={'w-full text-left p-4 rounded-lg border flex items-start gap-3 ' + (data.dataChoice === 'blank' ? 'border-ink bg-paper-dim' : 'border-line')}>
+                <div className={'w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 ' + (data.dataChoice === 'blank' ? 'border-ink bg-ink' : 'border-line')} />
+                <div>
+                  <p className="text-sm font-medium">Start from scratch</p>
+                  <p className="text-xs text-ink-muted mt-0.5">Begin with an empty workspace and add your own products, staff, and suppliers.</p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="text-center py-4">
+              <div className="w-14 h-14 rounded-full bg-moss-light text-moss flex items-center justify-center mx-auto mb-4">
+                <IconCheck size={26} />
+              </div>
+              <h2 className="font-display text-2xl font-semibold text-ink">{data.name || 'Your business'} is ready</h2>
+              <p className="text-sm text-ink-muted mt-2 max-w-sm mx-auto">
+                You can add employees, connect payment methods, and fine-tune branding anytime from Settings.
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-between mt-8">
+            {step > 0 ? <Button variant="ghost" onClick={() => setStep(s => s - 1)}>Back</Button> : <span />}
+            {step < steps.length - 1 ? (
+              <Button variant="primary" disabled={!canNext()} onClick={() => setStep(s => s + 1)}>Continue</Button>
+            ) : (
+              <Button variant="brass" onClick={() => onComplete(data)}>Go to Dashboard</Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== APP SHELL ============================== */
+
+function Sidebar({ page, setPage, business, enabledModules, role, collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
+  const visibleItems = NAV_ITEMS.filter(item => (!item.module || enabledModules[item.module]) && item.roles.includes(role));
+  return (
+    <>
+      {mobileOpen && <div className="fixed inset-0 bg-ink/40 z-30 md:hidden" onClick={() => setMobileOpen(false)} />}
+      <aside className={'fixed md:sticky top-0 h-screen z-40 bg-ink text-paper flex flex-col shrink-0 transition-all duration-200 ' +
+        (collapsed ? 'w-[72px]' : 'w-[240px]') + ' ' + (mobileOpen ? 'left-0' : '-left-full md:left-0')}>
+        <div className="flex items-center gap-2.5 px-4 h-16 border-b border-white/10 shrink-0">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-ink font-display font-semibold shrink-0" style={{ background: business.primaryColor || '#C08829' }}>
+            {initials(business.name) || 'B'}
+          </div>
+          {!collapsed && <span className="font-display font-medium truncate">{business.name}</span>}
+        </div>
+        <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-0.5">
+          {visibleItems.map(item => {
+            const Ico = item.icon;
+            const active = page === item.key;
+            return (
+              <button key={item.key} onClick={() => { setPage(item.key); setMobileOpen(false); }}
+                className={'w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm transition-colors ' +
+                  (active ? 'bg-paper text-ink font-medium' : 'text-paper/75 hover:bg-white/10')}>
+                <Ico size={18} />
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </button>
+            );
+          })}
+        </nav>
+        <button onClick={() => setCollapsed(c => !c)} className="hidden md:flex items-center justify-center py-3 border-t border-white/10 text-paper/60 hover:text-paper hover:bg-white/5">
+          <IconChevronRight size={16} className={collapsed ? '' : 'rotate-180'} style={{ transition: 'transform .2s' }} />
+        </button>
+      </aside>
+    </>
+  );
+}
+
+function RoleBanner({ role }) {
+  if (role === 'owner') return null;
+  const label = ROLES.find(r => r.key === role)?.label;
+  return (
+    <div className="bg-brass-light text-brass-dark text-xs px-4 py-2 flex items-center gap-2 border-b border-brass/30">
+      <IconUser size={13} /> Viewing as <span className="font-semibold">{label}</span> — navigation reflects this role's permissions.
+    </div>
+  );
+}
+
+function Topbar({ business, role, setRole, dark, setDark, setMobileOpen, notifications, page }) {
+  const [showNotif, setShowNotif] = useState(false);
+  const [showRole, setShowRole] = useState(false);
+  const pageLabel = (NAV_ITEMS.find(n => n.key === page) || {}).label || '';
+  return (
+    <div className="sticky top-0 z-20 bg-paper/90 backdrop-blur border-b border-line">
+      <div className="h-16 flex items-center gap-3 px-4 md:px-6">
+        <button className="md:hidden p-1.5 -ml-1" onClick={() => setMobileOpen(true)}><IconMenu size={20} /></button>
+        <h1 className="font-display text-lg font-medium hidden sm:block">{pageLabel}</h1>
+        <div className="flex-1" />
+        <div className="hidden md:flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 w-64 text-ink-muted">
+          <IconSearch size={15} />
+          <input placeholder="Search products, customers, orders…" className="bg-transparent outline-none text-sm w-full text-ink placeholder:text-ink-muted/70" />
+        </div>
+        <button onClick={() => setDark(d => !d)} className="p-2 rounded-md hover:bg-paper-dim text-ink-muted" title="Toggle theme">
+          {dark ? <IconSun size={17} /> : <IconMoon size={17} />}
+        </button>
+        <div className="relative">
+          <button onClick={() => setShowNotif(s => !s)} className="p-2 rounded-md hover:bg-paper-dim text-ink-muted relative">
+            <IconBell size={17} />
+            {notifications.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-clay" />}
+          </button>
+          {showNotif && (
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-line rounded-lg shadow-xl p-2 rise-in max-h-96 overflow-y-auto">
+              <p className="text-xs font-semibold text-ink-muted px-2 py-1.5">Notifications</p>
+              {notifications.length === 0 && <p className="text-sm text-ink-muted px-2 py-4 text-center">You're all caught up.</p>}
+              {notifications.map((n, i) => (
+                <div key={i} className="px-2 py-2 rounded-md hover:bg-paper-dim text-sm flex gap-2">
+                  <span className={'mt-1 w-1.5 h-1.5 rounded-full shrink-0 ' + (n.tone === 'bad' ? 'bg-clay' : 'bg-brass')} />
+                  <span>{n.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <button onClick={() => setShowRole(s => !s)} className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-paper-dim">
+            <div className="w-8 h-8 rounded-full bg-ink text-paper flex items-center justify-center text-xs font-medium">{initials(ROLES.find(r=>r.key===role)?.label)}</div>
+            <IconChevronDown size={14} className="text-ink-muted hidden sm:block" />
+          </button>
+          {showRole && (
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-line rounded-lg shadow-xl p-1.5 rise-in">
+              <p className="text-xs font-semibold text-ink-muted px-2.5 py-1.5">View as role</p>
+              {ROLES.map(r => (
+                <button key={r.key} onClick={() => { setRole(r.key); setShowRole(false); }}
+                  className={'w-full text-left px-2.5 py-2 rounded-md text-sm flex items-center justify-between hover:bg-paper-dim ' + (role === r.key ? 'font-medium' : '')}>
+                  {r.label} {role === r.key && <IconCheck size={14} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== DASHBOARD ============================== */
+
+function Dashboard({ state, ctx }) {
+  const { sales, products, expenses, purchases, business } = state;
+  const currency = business.currency;
+  const today = dayKey(new Date().toISOString());
+  const todaySales = sales.filter(s => dayKey(s.date) === today);
+  const todayRevenue = todaySales.reduce((a, s) => a + s.total, 0);
+  const yesterday = dayKey(isoDaysAgo(1));
+  const yestSales = sales.filter(s => dayKey(s.date) === yesterday);
+  const yestRevenue = yestSales.reduce((a, s) => a + s.total, 0);
+  const revenueDelta = yestRevenue ? Math.round(((todayRevenue - yestRevenue) / yestRevenue) * 100) : 0;
+
+  const last14 = [...Array(14)].map((_, i) => {
+    const key = dayKey(isoDaysAgo(13 - i));
+    const total = sales.filter(s => dayKey(s.date) === key).reduce((a, s) => a + s.total, 0);
+    return { label: new Date(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }).split(' ')[0], value: total };
+  });
+
+  const productSales = {};
+  sales.forEach(s => s.items.forEach(it => { productSales[it.name] = (productSales[it.name] || 0) + it.qty; }));
+  const topProducts = Object.entries(productSales).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, value]) => ({ label, value }));
+
+  const lowStock = products.filter(p => p.stock <= p.reorderLevel);
+  const grossProfit = sales.reduce((a, s) => a + s.items.reduce((b, it) => {
+    const p = products.find(pp => pp.id === it.productId);
+    return b + (p ? (it.price - p.cost) * it.qty : 0);
+  }, 0), 0);
+  const totalExpenses = expenses.reduce((a, e) => a + e.amount, 0);
+  const pendingPO = purchases.filter(p => p.status === 'pending').length;
+  const recent = sales.slice(0, 6);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Today's revenue" value={fmtMoney(todayRevenue, currency)} delta={Math.abs(revenueDelta) + '% vs yesterday'} deltaGood={revenueDelta >= 0} />
+        <StatCard label="Today's orders" value={todaySales.length} sub={sales.length + ' all time'} />
+        <StatCard label="Gross profit (all time)" value={fmtMoney(grossProfit, currency)} sub="Since launch" />
+        <StatCard label="Low stock items" value={lowStock.length} sub={lowStock.length ? 'Needs attention' : 'All healthy'} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <Card title="Sales, last 14 days" className="lg:col-span-2">
+          <BarChart data={last14} formatValue={v => fmtMoney(v, currency)} />
+        </Card>
+        <Card title="Top products" subtitle="By units sold">
+          {topProducts.length ? <HBarList data={topProducts} /> : <p className="text-sm text-ink-muted">No sales yet.</p>}
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <Card title="Recent transactions" className="lg:col-span-2" padded={false}
+          action={<Button size="sm" variant="ghost" onClick={() => ctx.setPage('reports')}>View all</Button>}>
+          {recent.length === 0 ? <div className="px-5 pb-5"><EmptyState icon={<IconReceipt size={22}/>} title="No sales yet" message="Sales will appear here once you start ringing up orders in the POS." /></div> : (
+            <table className="w-full text-sm">
+              <tbody>
+                {recent.map(s => (
+                  <tr key={s.id} className="border-t border-line first:border-t-0">
+                    <td className="px-5 py-3 text-ink-muted whitespace-nowrap">{fmtDateTime(s.date)}</td>
+                    <td className="px-2 py-3">{s.customerName}</td>
+                    <td className="px-2 py-3 text-ink-muted">{s.items.length} item{s.items.length !== 1 ? 's' : ''}</td>
+                    <td className="px-2 py-3"><Badge tone="default">{s.paymentMethod}</Badge></td>
+                    <td className="px-5 py-3 text-right font-medium tabular">{fmtMoney(s.total, currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+        <Card title="Attention needed">
+          <div className="space-y-3">
+            {lowStock.slice(0, 4).map(p => (
+              <div key={p.id} className="flex items-center justify-between text-sm">
+                <span className="truncate pr-2">{p.name}</span>
+                <Badge tone="warn">{p.stock} left</Badge>
+              </div>
+            ))}
+            {pendingPO > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span>Purchase orders awaiting receipt</span>
+                <Badge tone="default">{pendingPO}</Badge>
+              </div>
+            )}
+            {lowStock.length === 0 && pendingPO === 0 && <p className="text-sm text-ink-muted">Nothing needs attention right now.</p>}
+            <div className="pt-2 border-t border-line flex justify-between text-sm">
+              <span className="text-ink-muted">Expenses (all time)</span>
+              <span className="font-medium tabular">{fmtMoney(totalExpenses, currency)}</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== POS ============================== */
+
+function POS({ state, actions, ctx }) {
+  const { products, customers, business, employees, settings } = state;
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('All');
+  const [cart, setCart] = useState([]);
+  const [customerId, setCustomerId] = useState(customers.find(c => c.isWalkIn)?.id || customers[0]?.id);
+  const [discount, setDiscount] = useState(0);
+  const [heldOrders, setHeldOrders] = useState([]);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [receipt, setReceipt] = useState(null);
+  const [note, setNote] = useState('');
+
+  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  const filtered = products.filter(p =>
+    p.status !== 'discontinued' &&
+    (category === 'All' || p.category === category) &&
+    (search === '' || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
+  );
+
+  const addToCart = (p) => {
+    if (p.stock <= 0) { ctx.toast('That item is out of stock.', 'bad'); return; }
+    setCart(c => {
+      const existing = c.find(i => i.productId === p.id);
+      if (existing) {
+        if (existing.qty >= p.stock) { ctx.toast('No more stock available.', 'bad'); return c; }
+        return c.map(i => i.productId === p.id ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...c, { productId: p.id, name: p.name, price: p.price, qty: 1 }];
+    });
+  };
+  const updateQty = (id, delta) => {
+    setCart(c => c.map(i => {
+      if (i.productId !== id) return i;
+      const prod = products.find(p => p.id === id);
+      const newQty = Math.max(1, Math.min(prod ? prod.stock : 99, i.qty + delta));
+      return { ...i, qty: newQty };
+    }));
+  };
+  const removeFromCart = (id) => setCart(c => c.filter(i => i.productId !== id));
+
+  const subtotal = cart.reduce((a, i) => a + i.price * i.qty, 0);
+  const discountAmt = subtotal * (discount / 100);
+  const taxable = subtotal - discountAmt;
+  const tax = taxable * (business.taxRate / 100);
+  const total = taxable + tax;
+
+  const holdOrder = () => {
+    if (!cart.length) return;
+    setHeldOrders(h => [...h, { id: uid('hold'), cart, customerId, discount, note, time: new Date().toISOString() }]);
+    setCart([]); setDiscount(0); setNote('');
+    ctx.toast('Order held.', 'good');
+  };
+  const resumeOrder = (h) => {
+    setCart(h.cart); setCustomerId(h.customerId); setDiscount(h.discount); setNote(h.note);
+    setHeldOrders(hs => hs.filter(x => x.id !== h.id));
+  };
+
+  const completeSale = (paymentMethod, splitPayments) => {
+    const cust = customers.find(c => c.id === customerId);
+    const emp = employees[0];
+    const sale = {
+      id: uid('sale'), date: new Date().toISOString(),
+      items: cart.map(i => ({ productId: i.productId, name: i.name, qty: i.qty, price: i.price, total: i.price * i.qty })),
+      subtotal, discount: discountAmt, tax, total,
+      paymentMethod: splitPayments ? 'Split (' + splitPayments.map(p => p.method).join(' + ') + ')' : paymentMethod,
+      splitPayments: splitPayments || null,
+      customerId, customerName: cust ? cust.name : 'Walk-in', employeeId: emp.id, employeeName: emp.name, status: 'completed', note,
+    };
+    actions.recordSale(sale);
+    setReceipt(sale);
+    setCart([]); setDiscount(0); setNote(''); setShowCheckout(false);
+  };
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-5 -mx-1">
+      <div className="flex-1 px-1">
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+          <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-2 flex-1">
+            <IconSearch size={16} className="text-ink-muted" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search or scan barcode…" className="bg-transparent outline-none text-sm w-full" />
+          </div>
+          {heldOrders.length > 0 && (
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {heldOrders.map(h => (
+                <button key={h.id} onClick={() => resumeOrder(h)} className="shrink-0 text-xs px-2.5 py-2 rounded-md border border-brass text-brass-dark bg-brass-light flex items-center gap-1">
+                  <IconClock size={13}/> Resume ({h.cart.length})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {categories.map(c => (
+            <button key={c} onClick={() => setCategory(c)} className={'shrink-0 px-3 py-1.5 rounded-full text-sm border ' + (category === c ? 'bg-ink text-paper border-ink' : 'border-line text-ink-muted bg-white')}>{c}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filtered.map(p => (
+            <button key={p.id} onClick={() => addToCart(p)} disabled={p.stock <= 0}
+              className="text-left bg-white border border-line rounded-lg p-3 hover:border-ink transition-colors disabled:opacity-40 disabled:cursor-not-allowed relative">
+              {p.stock <= p.reorderLevel && p.stock > 0 && <span className="absolute top-2 right-2"><Badge tone="warn">Low</Badge></span>}
+              {p.stock <= 0 && <span className="absolute top-2 right-2"><Badge tone="bad">Out</Badge></span>}
+              <div className="w-full aspect-square rounded-md bg-paper-dim mb-2 flex items-center justify-center text-ink-muted font-display text-lg">
+                {p.name.split(' ').map(w=>w[0]).slice(0,2).join('')}
+              </div>
+              <p className="text-sm font-medium truncate">{p.name}</p>
+              <p className="text-xs text-ink-muted tabular">{fmtMoney(p.price, business.currency)} · {p.stock} {p.unit}</p>
+            </button>
+          ))}
+          {filtered.length === 0 && <p className="text-sm text-ink-muted col-span-full py-8 text-center">No products match your search.</p>}
+        </div>
+      </div>
+
+      <div className="w-full lg:w-[360px] shrink-0">
+        <div className="bg-white border border-line rounded-xl flex flex-col sticky top-20 max-h-[calc(100vh-6rem)]">
+          <div className="px-4 py-3 border-b border-line flex items-center justify-between">
+            <h3 className="font-display font-medium">Current order</h3>
+            {cart.length > 0 && <button onClick={() => setCart([])} className="text-xs text-clay">Clear</button>}
+          </div>
+          <div className="px-4 py-2">
+            <Select label="" value={customerId} onChange={e => setCustomerId(e.target.value)}
+              options={customers.map(c => ({ value: c.id, label: c.name }))} />
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 space-y-2 py-2">
+            {cart.length === 0 && <p className="text-sm text-ink-muted text-center py-10">Cart is empty. Tap a product to add it.</p>}
+            {cart.map(i => (
+              <div key={i.productId} className="flex items-center gap-2 py-2 border-b border-line last:border-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{i.name}</p>
+                  <p className="text-xs text-ink-muted tabular">{fmtMoney(i.price, business.currency)}</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => updateQty(i.productId, -1)} className="w-6 h-6 rounded-full border border-line flex items-center justify-center"><IconMinus size={12}/></button>
+                  <span className="w-5 text-center text-sm tabular">{i.qty}</span>
+                  <button onClick={() => updateQty(i.productId, 1)} className="w-6 h-6 rounded-full border border-line flex items-center justify-center"><IconPlus size={12}/></button>
+                </div>
+                <p className="text-sm font-medium tabular w-16 text-right">{fmtMoney(i.price * i.qty, business.currency)}</p>
+                <button onClick={() => removeFromCart(i.productId)} className="text-ink-muted hover:text-clay"><IconX size={14}/></button>
+              </div>
+            ))}
+          </div>
+          <div className="px-4 py-3 border-t border-line space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-ink-muted">Discount %</span>
+              <input type="number" min="0" max="100" value={discount} onChange={e => setDiscount(Number(e.target.value))} className="w-16 text-right px-2 py-1 border border-line rounded tabular" />
+            </div>
+            <div className="flex justify-between text-sm"><span className="text-ink-muted">Subtotal</span><span className="tabular">{fmtMoney(subtotal, business.currency)}</span></div>
+            {discountAmt > 0 && <div className="flex justify-between text-sm"><span className="text-ink-muted">Discount</span><span className="tabular text-clay">-{fmtMoney(discountAmt, business.currency)}</span></div>}
+            <div className="flex justify-between text-sm"><span className="text-ink-muted">Tax ({business.taxRate}%)</span><span className="tabular">{fmtMoney(tax, business.currency)}</span></div>
+            <div className="flex justify-between font-semibold text-base pt-1 border-t border-line"><span>Total</span><span className="tabular">{fmtMoney(total, business.currency)}</span></div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={holdOrder} disabled={!cart.length}>Hold</Button>
+              <Button variant="brass" className="flex-1" onClick={() => setShowCheckout(true)} disabled={!cart.length}>Charge</Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Modal open={showCheckout} onClose={() => setShowCheckout(false)} title="Take payment">
+        <CheckoutForm total={total} currency={business.currency} paymentMethods={settings.paymentMethods} onComplete={completeSale} />
+      </Modal>
+
+      <Modal open={!!receipt} onClose={() => setReceipt(null)} title="Sale complete" width="max-w-sm"
+        footer={<>
+          <Button variant="outline" icon={<IconPrint size={15}/>} onClick={() => window.print()}>Print</Button>
+          <Button variant="primary" onClick={() => setReceipt(null)}>Done</Button>
+        </>}>
+        {receipt && <Receipt sale={receipt} business={business} />}
+      </Modal>
+    </div>
+  );
+}
+
+function CheckoutForm({ total, currency, paymentMethods, onComplete }) {
+  const [mode, setMode] = useState('single');
+  const [method, setMethod] = useState(paymentMethods[0]);
+  const [splits, setSplits] = useState([{ method: paymentMethods[0], amount: total }]);
+  const splitTotal = splits.reduce((a, s) => a + Number(s.amount || 0), 0);
+  const remaining = total - splitTotal;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-baseline">
+        <span className="text-sm text-ink-muted">Amount due</span>
+        <span className="font-display text-2xl font-semibold tabular">{fmtMoney(total, currency)}</span>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => setMode('single')} className={'flex-1 py-2 rounded-md border text-sm ' + (mode === 'single' ? 'border-ink bg-paper-dim' : 'border-line')}>Single payment</button>
+        <button onClick={() => setMode('split')} className={'flex-1 py-2 rounded-md border text-sm ' + (mode === 'split' ? 'border-ink bg-paper-dim' : 'border-line')}>Split payment</button>
+      </div>
+      {mode === 'single' ? (
+        <div className="grid grid-cols-2 gap-2">
+          {paymentMethods.map(m => (
+            <button key={m} onClick={() => setMethod(m)} className={'py-2.5 rounded-md border text-sm ' + (method === m ? 'border-ink bg-paper-dim font-medium' : 'border-line')}>{m}</button>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {splits.map((s, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <select value={s.method} onChange={e => setSplits(sp => sp.map((x, xi) => xi === i ? { ...x, method: e.target.value } : x))} className="flex-1 px-2 py-2 border border-line rounded-md text-sm">
+                {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <input type="number" value={s.amount} onChange={e => setSplits(sp => sp.map((x, xi) => xi === i ? { ...x, amount: e.target.value } : x))} className="w-28 px-2 py-2 border border-line rounded-md text-sm tabular" />
+              {splits.length > 1 && <button onClick={() => setSplits(sp => sp.filter((_, xi) => xi !== i))} className="text-ink-muted hover:text-clay"><IconX size={14}/></button>}
+            </div>
+          ))}
+          <button onClick={() => setSplits(sp => [...sp, { method: paymentMethods[0], amount: Math.max(0, remaining) }])} className="text-xs text-brass-dark font-medium flex items-center gap-1"><IconPlus size={12}/> Add payment method</button>
+          <p className={'text-xs ' + (Math.abs(remaining) < 0.01 ? 'text-moss' : 'text-clay')}>{Math.abs(remaining) < 0.01 ? 'Fully covered' : (remaining > 0 ? fmtMoney(remaining, currency) + ' remaining' : 'Overpaid by ' + fmtMoney(-remaining, currency))}</p>
+        </div>
+      )}
+      <Button variant="brass" className="w-full" size="lg"
+        disabled={mode === 'split' && Math.abs(remaining) > 0.01}
+        onClick={() => onComplete(method, mode === 'split' ? splits : null)}>
+        Complete sale
+      </Button>
+    </div>
+  );
+}
+
+function Receipt({ sale, business }) {
+  return (
+    <div className="font-mono text-xs bg-paper-dim rounded-lg p-4 receipt-edge">
+      <div className="text-center mb-3">
+        <p className="font-display text-base font-semibold not-italic">{business.name}</p>
+        <p className="text-ink-muted">{fmtDateTime(sale.date)}</p>
+        <p className="text-ink-muted">Order #{sale.id.slice(-6).toUpperCase()}</p>
+      </div>
+      <div className="border-t border-dashed border-ink-muted/40 my-2" />
+      {sale.items.map((it, i) => (
+        <div key={i} className="flex justify-between py-0.5">
+          <span>{it.qty}× {it.name}</span>
+          <span className="tabular">{fmtMoney(it.total, business.currency)}</span>
+        </div>
+      ))}
+      <div className="border-t border-dashed border-ink-muted/40 my-2" />
+      <div className="flex justify-between py-0.5"><span>Subtotal</span><span className="tabular">{fmtMoney(sale.subtotal, business.currency)}</span></div>
+      {sale.discount > 0 && <div className="flex justify-between py-0.5"><span>Discount</span><span className="tabular">-{fmtMoney(sale.discount, business.currency)}</span></div>}
+      <div className="flex justify-between py-0.5"><span>Tax</span><span className="tabular">{fmtMoney(sale.tax, business.currency)}</span></div>
+      <div className="flex justify-between py-1 font-semibold text-sm"><span>Total</span><span className="tabular">{fmtMoney(sale.total, business.currency)}</span></div>
+      <div className="border-t border-dashed border-ink-muted/40 my-2" />
+      <p>Paid via {sale.paymentMethod}</p>
+      <p>Served by {sale.employeeName}</p>
+      <p className="text-center mt-3 text-ink-muted">Thank you for your business!</p>
+    </div>
+  );
+}
+
+/* ============================== PRODUCTS & INVENTORY ============================== */
+
+function ProductForm({ initial, categories, suppliers, currency, onSave, onCancel }) {
+  const [f, setF] = useState(initial || { name: '', category: categories[0] || '', sku: '', barcode: '', cost: 0, price: 0, stock: 0, reorderLevel: 5, unit: 'pc', supplierId: suppliers[0]?.id || '', status: 'active' });
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  return (
+    <div className="space-y-3">
+      <Input label="Product name" value={f.name} onChange={e => set('name', e.target.value)} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Category" value={f.category} onChange={e => set('category', e.target.value)} list="cat-list" />
+        <datalist id="cat-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
+        <Select label="Unit" value={f.unit} onChange={e => set('unit', e.target.value)}
+          options={['pc','cup','bag','bottle','kg','g','l','ml','box'].map(u => ({ value: u, label: u }))} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="SKU" value={f.sku} onChange={e => set('sku', e.target.value)} />
+        <Input label="Barcode" value={f.barcode} onChange={e => set('barcode', e.target.value)} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label={'Cost price (' + currency + ')'} type="number" step="0.01" value={f.cost} onChange={e => set('cost', Number(e.target.value))} />
+        <Input label={'Selling price (' + currency + ')'} type="number" step="0.01" value={f.price} onChange={e => set('price', Number(e.target.value))} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Stock on hand" type="number" value={f.stock} onChange={e => set('stock', Number(e.target.value))} />
+        <Input label="Reorder level" type="number" value={f.reorderLevel} onChange={e => set('reorderLevel', Number(e.target.value))} />
+      </div>
+      <Select label="Supplier" value={f.supplierId} onChange={e => set('supplierId', e.target.value)}
+        options={[{ value: '', label: 'None' }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]} />
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={() => onSave(f)} disabled={!f.name}>Save product</Button>
+      </ConfirmBar>
+    </div>
+  );
+}
+
+function Products({ state, actions, ctx }) {
+  const { products, suppliers, business, inventoryMovements } = state;
+  const [tab, setTab] = useState('products');
+  const [search, setSearch] = useState('');
+  const [modal, setModal] = useState(null); // {mode:'add'|'edit', product}
+  const [movementFor, setMovementFor] = useState(null);
+  const [adjust, setAdjust] = useState(null);
+
+  const categories = Array.from(new Set(products.map(p => p.category)));
+  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()));
+  const lowStock = products.filter(p => p.stock <= p.reorderLevel);
+  const inventoryValue = products.reduce((a, p) => a + p.stock * p.cost, 0);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-paper-dim rounded-lg p-1">
+          {[['products','Products'],['alerts','Stock Alerts ('+lowStock.length+')'],['movements','Movement History']].map(([k,l]) => (
+            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+          ))}
+        </div>
+        {tab === 'products' && <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add product</Button>}
+      </div>
+
+      {tab === 'products' && (
+        <Card padded={false}>
+          <div className="p-4 border-b border-line flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 flex-1 max-w-xs">
+              <IconSearch size={14} className="text-ink-muted" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products…" className="bg-transparent outline-none text-sm w-full" />
+            </div>
+            <div className="text-xs text-ink-muted">Inventory value: <span className="font-semibold text-ink tabular">{fmtMoney(inventoryValue, business.currency)}</span></div>
+          </div>
+          {filtered.length === 0 ? <EmptyState icon={<IconBox size={22}/>} title="No products yet" message="Add your first product to start tracking inventory and selling in the POS." action={<Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add product</Button>} /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-ink-muted border-b border-line">
+                <th className="px-4 py-2.5 font-medium">Product</th><th className="px-2 py-2.5 font-medium">Category</th>
+                <th className="px-2 py-2.5 font-medium">Cost</th><th className="px-2 py-2.5 font-medium">Price</th>
+                <th className="px-2 py-2.5 font-medium">Stock</th><th className="px-2 py-2.5 font-medium">Status</th>
+                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+              </tr></thead>
+              <tbody>
+                {filtered.map(p => (
+                  <tr key={p.id} className="border-b border-line last:border-0 hover:bg-paper-dim/50">
+                    <td className="px-4 py-2.5"><p className="font-medium">{p.name}</p><p className="text-xs text-ink-muted">{p.sku}</p></td>
+                    <td className="px-2 py-2.5 text-ink-muted">{p.category}</td>
+                    <td className="px-2 py-2.5 tabular">{fmtMoney(p.cost, business.currency)}</td>
+                    <td className="px-2 py-2.5 tabular font-medium">{fmtMoney(p.price, business.currency)}</td>
+                    <td className="px-2 py-2.5 tabular">{p.stock} {p.unit}</td>
+                    <td className="px-2 py-2.5">{p.stock <= 0 ? <Badge tone="bad">Out of stock</Badge> : p.stock <= p.reorderLevel ? <Badge tone="warn">Low</Badge> : <Badge tone="good">In stock</Badge>}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => setAdjust(p)} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Adjust stock"><IconLayers size={14}/></button>
+                        <button onClick={() => setModal({ mode: 'edit', product: p })} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Edit"><IconEdit size={14}/></button>
+                        <button onClick={() => { actions.deleteProduct(p.id); ctx.toast('Product removed.', 'good'); }} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Delete"><IconTrash size={14}/></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          )}
+        </Card>
+      )}
+
+      {tab === 'alerts' && (
+        <Card padded={false}>
+          {lowStock.length === 0 ? <EmptyState icon={<IconCheck size={22}/>} title="All stocked up" message="No products are currently below their reorder level." /> : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-4 py-2.5 font-medium">Product</th><th className="px-2 py-2.5 font-medium">Current stock</th><th className="px-2 py-2.5 font-medium">Reorder level</th><th className="px-4 py-2.5 font-medium">Status</th></tr></thead>
+              <tbody>{lowStock.map(p => (
+                <tr key={p.id} className="border-b border-line last:border-0">
+                  <td className="px-4 py-2.5 font-medium">{p.name}</td>
+                  <td className="px-2 py-2.5 tabular">{p.stock} {p.unit}</td>
+                  <td className="px-2 py-2.5 tabular text-ink-muted">{p.reorderLevel} {p.unit}</td>
+                  <td className="px-4 py-2.5">{p.stock <= 0 ? <Badge tone="bad">Out of stock</Badge> : <Badge tone="warn">Reorder soon</Badge>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+        </Card>
+      )}
+
+      {tab === 'movements' && (
+        <Card padded={false}>
+          {inventoryMovements.length === 0 ? <EmptyState icon={<IconLayers size={22}/>} title="No movement yet" message="Stock changes from sales, purchases, and manual adjustments will be logged here." /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-4 py-2.5 font-medium">Date</th><th className="px-2 py-2.5 font-medium">Product</th><th className="px-2 py-2.5 font-medium">Type</th><th className="px-2 py-2.5 font-medium">Change</th><th className="px-2 py-2.5 font-medium">New qty</th><th className="px-4 py-2.5 font-medium">Reason</th></tr></thead>
+              <tbody>{inventoryMovements.slice(0, 100).map(m => (
+                <tr key={m.id} className="border-b border-line last:border-0">
+                  <td className="px-4 py-2.5 text-ink-muted whitespace-nowrap">{fmtDateTime(m.date)}</td>
+                  <td className="px-2 py-2.5">{m.productName}</td>
+                  <td className="px-2 py-2.5"><Badge tone={m.type === 'sale' ? 'default' : m.type === 'purchase' ? 'good' : 'warn'}>{m.type}</Badge></td>
+                  <td className={'px-2 py-2.5 tabular font-medium ' + (m.qtyChange < 0 ? 'text-clay' : 'text-moss')}>{m.qtyChange > 0 ? '+' : ''}{m.qtyChange}</td>
+                  <td className="px-2 py-2.5 tabular">{m.newQty}</td>
+                  <td className="px-4 py-2.5 text-ink-muted">{m.reason}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          )}
+        </Card>
+      )}
+
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit product' : 'Add product'}>
+        {modal && <ProductForm initial={modal.product} categories={categories} suppliers={suppliers} currency={business.currency}
+          onCancel={() => setModal(null)}
+          onSave={(f) => { modal.mode === 'edit' ? actions.updateProduct(f) : actions.addProduct(f); setModal(null); ctx.toast('Product saved.', 'good'); }} />}
+      </Modal>
+
+      <Modal open={!!adjust} onClose={() => setAdjust(null)} title={'Adjust stock — ' + (adjust?.name || '')} width="max-w-sm">
+        {adjust && <AdjustStockForm product={adjust} onCancel={() => setAdjust(null)} onSave={(qty, reason) => { actions.adjustStock(adjust.id, qty, reason); setAdjust(null); ctx.toast('Stock adjusted.', 'good'); }} />}
+      </Modal>
+    </div>
+  );
+}
+
+function AdjustStockForm({ product, onCancel, onSave }) {
+  const [qty, setQty] = useState(0);
+  const [reason, setReason] = useState('Stock count correction');
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink-muted">Current stock: <span className="font-medium text-ink tabular">{product.stock} {product.unit}</span></p>
+      <Input label="Quantity change" type="number" value={qty} onChange={e => setQty(Number(e.target.value))} hint="Use a negative number to reduce stock (e.g. damage, shrinkage)." />
+      <Select label="Reason" value={reason} onChange={e => setReason(e.target.value)} options={['Stock count correction','Damaged goods','Theft / shrinkage','Expired product','Other'].map(r => ({ value: r, label: r }))} />
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={() => onSave(qty, reason)} disabled={qty === 0}>Apply adjustment</Button>
+      </ConfirmBar>
+    </div>
+  );
+}
+
+/* ============================== PURCHASES & SUPPLIERS ============================== */
+
+function Purchases({ state, actions, ctx }) {
+  const [tab, setTab] = useState('purchases');
+  const { purchases, suppliers, products, business } = state;
+  const [poModal, setPoModal] = useState(false);
+  const [supModal, setSupModal] = useState(null);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-paper-dim rounded-lg p-1">
+          {[['purchases','Purchase Orders'],['suppliers','Suppliers']].map(([k,l]) => (
+            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+          ))}
+        </div>
+        {tab === 'purchases' ? <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setPoModal(true)}>New purchase order</Button>
+          : <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setSupModal({ mode: 'add' })}>Add supplier</Button>}
+      </div>
+
+      {tab === 'purchases' && (
+        <Card padded={false}>
+          {purchases.length === 0 ? <EmptyState icon={<IconTruck size={22}/>} title="No purchase orders yet" message="Create a purchase order to restock from your suppliers." action={<Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setPoModal(true)}>New purchase order</Button>} /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-4 py-2.5 font-medium">Date</th><th className="px-2 py-2.5 font-medium">Supplier</th><th className="px-2 py-2.5 font-medium">Items</th><th className="px-2 py-2.5 font-medium">Total</th><th className="px-2 py-2.5 font-medium">Status</th><th className="px-4 py-2.5 font-medium text-right">Action</th></tr></thead>
+              <tbody>{purchases.map(po => (
+                <tr key={po.id} className="border-b border-line last:border-0">
+                  <td className="px-4 py-2.5 text-ink-muted whitespace-nowrap">{fmtDate(po.date)}</td>
+                  <td className="px-2 py-2.5">{po.supplierName}</td>
+                  <td className="px-2 py-2.5 text-ink-muted">{po.items.length} line{po.items.length !== 1 ? 's' : ''}</td>
+                  <td className="px-2 py-2.5 tabular font-medium">{fmtMoney(po.total, business.currency)}</td>
+                  <td className="px-2 py-2.5">{po.status === 'received' ? <Badge tone="good">Received</Badge> : <Badge tone="warn">Pending</Badge>}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    {po.status === 'pending' && <Button size="sm" variant="outline" onClick={() => { actions.receivePurchase(po.id); ctx.toast('Purchase received — stock updated.', 'good'); }}>Mark received</Button>}
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          )}
+        </Card>
+      )}
+
+      {tab === 'suppliers' && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {suppliers.length === 0 && <div className="col-span-full"><EmptyState icon={<IconTruck size={22}/>} title="No suppliers yet" message="Add suppliers to track purchases and outstanding balances." action={<Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setSupModal({ mode: 'add' })}>Add supplier</Button>} /></div>}
+          {suppliers.map(s => {
+            const supPurchases = purchases.filter(p => p.supplierId === s.id);
+            return (
+              <Card key={s.id}>
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="font-medium">{s.name}</p>
+                    <p className="text-xs text-ink-muted">{s.contact}</p>
+                  </div>
+                  <button onClick={() => setSupModal({ mode: 'edit', supplier: s })} className="text-ink-muted hover:text-ink"><IconEdit size={14}/></button>
+                </div>
+                <p className="text-xs text-ink-muted">{s.phone}</p>
+                <p className="text-xs text-ink-muted mb-3">{s.email}</p>
+                <div className="flex justify-between text-sm pt-2 border-t border-line">
+                  <span className="text-ink-muted">Purchases</span><span className="tabular font-medium">{supPurchases.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-ink-muted">Outstanding balance</span>
+                  <span className={'tabular font-medium ' + (s.balance > 0 ? 'text-clay' : '')}>{fmtMoney(s.balance, business.currency)}</span>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Modal open={poModal} onClose={() => setPoModal(false)} title="New purchase order" width="max-w-lg">
+        <PurchaseOrderForm suppliers={suppliers} products={products} currency={business.currency}
+          onCancel={() => setPoModal(false)}
+          onSave={(po) => { actions.addPurchase(po); setPoModal(false); ctx.toast('Purchase order created.', 'good'); }} />
+      </Modal>
+
+      <Modal open={!!supModal} onClose={() => setSupModal(null)} title={supModal?.mode === 'edit' ? 'Edit supplier' : 'Add supplier'} width="max-w-md">
+        {supModal && <SupplierForm initial={supModal.supplier} onCancel={() => setSupModal(null)}
+          onSave={(s) => { supModal.mode === 'edit' ? actions.updateSupplier(s) : actions.addSupplier(s); setSupModal(null); ctx.toast('Supplier saved.', 'good'); }} />}
+      </Modal>
+    </div>
+  );
+}
+
+function SupplierForm({ initial, onCancel, onSave }) {
+  const [f, setF] = useState(initial || { name: '', contact: '', phone: '', email: '', balance: 0 });
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  return (
+    <div className="space-y-3">
+      <Input label="Supplier name" value={f.name} onChange={e => set('name', e.target.value)} />
+      <Input label="Contact person" value={f.contact} onChange={e => set('contact', e.target.value)} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Phone" value={f.phone} onChange={e => set('phone', e.target.value)} />
+        <Input label="Email" value={f.email} onChange={e => set('email', e.target.value)} />
+      </div>
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={() => onSave(f)} disabled={!f.name}>Save supplier</Button>
+      </ConfirmBar>
+    </div>
+  );
+}
+
+function PurchaseOrderForm({ suppliers, products, currency, onCancel, onSave }) {
+  const [supplierId, setSupplierId] = useState(suppliers[0]?.id || '');
+  const [items, setItems] = useState([{ productId: products[0]?.id || '', qty: 10 }]);
+  const total = items.reduce((a, it) => {
+    const p = products.find(pp => pp.id === it.productId);
+    return a + (p ? p.cost * it.qty : 0);
+  }, 0);
+  return (
+    <div className="space-y-3">
+      <Select label="Supplier" value={supplierId} onChange={e => setSupplierId(e.target.value)} options={suppliers.map(s => ({ value: s.id, label: s.name }))} />
+      <div className="space-y-2">
+        <span className="block text-xs font-medium text-ink-muted">Items</span>
+        {items.map((it, i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <select value={it.productId} onChange={e => setItems(is => is.map((x, xi) => xi === i ? { ...x, productId: e.target.value } : x))} className="flex-1 px-2 py-2 border border-line rounded-md text-sm">
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <input type="number" value={it.qty} onChange={e => setItems(is => is.map((x, xi) => xi === i ? { ...x, qty: Number(e.target.value) } : x))} className="w-20 px-2 py-2 border border-line rounded-md text-sm tabular" />
+            {items.length > 1 && <button onClick={() => setItems(is => is.filter((_, xi) => xi !== i))} className="text-ink-muted hover:text-clay"><IconX size={14}/></button>}
+          </div>
+        ))}
+        <button onClick={() => setItems(is => [...is, { productId: products[0]?.id || '', qty: 10 }])} className="text-xs text-brass-dark font-medium flex items-center gap-1"><IconPlus size={12}/> Add line item</button>
+      </div>
+      <div className="flex justify-between text-sm pt-2 border-t border-line"><span className="text-ink-muted">Estimated total</span><span className="font-medium tabular">{fmtMoney(total, currency)}</span></div>
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" disabled={!supplierId || !items.length} onClick={() => {
+          const supplier = suppliers.find(s => s.id === supplierId);
+          onSave({
+            id: uid('po'), date: new Date().toISOString(), supplierId, supplierName: supplier.name, status: 'pending',
+            items: items.map(it => { const p = products.find(pp => pp.id === it.productId); return { productId: it.productId, name: p.name, qty: it.qty, cost: p.cost }; }),
+            total,
+          });
+        }}>Create order</Button>
+      </ConfirmBar>
+    </div>
+  );
+}
+
+/* ============================== CUSTOMERS ============================== */
+
+function Customers({ state, actions, ctx }) {
+  const { customers, sales, business } = state;
+  const [search, setSearch] = useState('');
+  const [modal, setModal] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const filtered = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 max-w-xs w-full">
+          <IconSearch size={14} className="text-ink-muted" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers…" className="bg-transparent outline-none text-sm w-full" />
+        </div>
+        <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add customer</Button>
+      </div>
+      <Card padded={false}>
+        {filtered.length === 0 ? <EmptyState icon={<IconUsers size={22}/>} title="No customers yet" message="Add customers to track their purchase history and build loyalty." action={<Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add customer</Button>} /> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-4 py-2.5 font-medium">Name</th><th className="px-2 py-2.5 font-medium">Phone</th><th className="px-2 py-2.5 font-medium">Total spent</th><th className="px-2 py-2.5 font-medium">Orders</th><th className="px-4 py-2.5 font-medium text-right">Actions</th></tr></thead>
+            <tbody>{filtered.map(c => {
+              const orders = sales.filter(s => s.customerId === c.id).length;
+              return (
+                <tr key={c.id} className="border-b border-line last:border-0 hover:bg-paper-dim/50 cursor-pointer" onClick={() => setViewing(c)}>
+                  <td className="px-4 py-2.5 font-medium">{c.name}</td>
+                  <td className="px-2 py-2.5 text-ink-muted">{c.phone || '—'}</td>
+                  <td className="px-2 py-2.5 tabular">{fmtMoney(c.totalSpent, business.currency)}</td>
+                  <td className="px-2 py-2.5 tabular">{orders}</td>
+                  <td className="px-4 py-2.5 text-right" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-end gap-1">
+                      <button onClick={() => setModal({ mode: 'edit', customer: c })} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted"><IconEdit size={14}/></button>
+                      {!c.isWalkIn && <button onClick={() => { actions.deleteCustomer(c.id); ctx.toast('Customer removed.', 'good'); }} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted"><IconTrash size={14}/></button>}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+        )}
+      </Card>
+
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit customer' : 'Add customer'} width="max-w-md">
+        {modal && <CustomerForm initial={modal.customer} onCancel={() => setModal(null)}
+          onSave={(c) => { modal.mode === 'edit' ? actions.updateCustomer(c) : actions.addCustomer(c); setModal(null); ctx.toast('Customer saved.', 'good'); }} />}
+      </Modal>
+
+      <Modal open={!!viewing} onClose={() => setViewing(null)} title={viewing?.name || ''} width="max-w-lg">
+        {viewing && (
+          <div>
+            <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+              <div><p className="text-ink-muted text-xs">Phone</p><p>{viewing.phone || '—'}</p></div>
+              <div><p className="text-ink-muted text-xs">Email</p><p>{viewing.email || '—'}</p></div>
+              <div><p className="text-ink-muted text-xs">Total spent</p><p className="font-medium tabular">{fmtMoney(viewing.totalSpent, business.currency)}</p></div>
+              <div><p className="text-ink-muted text-xs">Customer since</p><p>{fmtDate(viewing.joined)}</p></div>
+            </div>
+            <p className="text-xs font-semibold text-ink-muted mb-2">Purchase history</p>
+            <div className="border border-line rounded-lg divide-y divide-line max-h-64 overflow-y-auto">
+              {sales.filter(s => s.customerId === viewing.id).map(s => (
+                <div key={s.id} className="px-3 py-2 flex justify-between text-sm">
+                  <span className="text-ink-muted">{fmtDateTime(s.date)}</span>
+                  <span className="tabular font-medium">{fmtMoney(s.total, business.currency)}</span>
+                </div>
+              ))}
+              {sales.filter(s => s.customerId === viewing.id).length === 0 && <p className="text-sm text-ink-muted px-3 py-4 text-center">No purchases yet.</p>}
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function CustomerForm({ initial, onCancel, onSave }) {
+  const [f, setF] = useState(initial || { name: '', phone: '', email: '', totalSpent: 0, balance: 0, joined: new Date().toISOString() });
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  return (
+    <div className="space-y-3">
+      <Input label="Full name" value={f.name} onChange={e => set('name', e.target.value)} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Phone" value={f.phone} onChange={e => set('phone', e.target.value)} />
+        <Input label="Email" value={f.email} onChange={e => set('email', e.target.value)} />
+      </div>
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={() => onSave(f)} disabled={!f.name}>Save customer</Button>
+      </ConfirmBar>
+    </div>
+  );
+}
+
+/* ============================== EMPLOYEES ============================== */
+
+function Employees({ state, actions, ctx }) {
+  const { employees, sales } = state;
+  const [modal, setModal] = useState(null);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-ink-muted">{employees.length} team member{employees.length !== 1 ? 's' : ''}</p>
+        <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add employee</Button>
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {employees.length === 0 && <div className="col-span-full"><EmptyState icon={<IconUser size={22}/>} title="No employees yet" message="Add your team and assign roles to control what each person can access." action={<Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add employee</Button>} /></div>}
+        {employees.map(e => {
+          const empSales = sales.filter(s => s.employeeId === e.id);
+          return (
+            <Card key={e.id}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-ink text-paper flex items-center justify-center font-medium text-sm">{initials(e.name)}</div>
+                  <div>
+                    <p className="font-medium">{e.name}</p>
+                    <p className="text-xs text-ink-muted">{e.email}</p>
+                  </div>
+                </div>
+                <button onClick={() => setModal({ mode: 'edit', employee: e })} className="text-ink-muted hover:text-ink"><IconEdit size={14}/></button>
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-line text-sm">
+                <Badge tone="brand">{ROLES.find(r => r.key === e.role)?.label}</Badge>
+                <span className="text-ink-muted">{empSales.length} sales</span>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit employee' : 'Add employee'} width="max-w-md">
+        {modal && <EmployeeForm initial={modal.employee} onCancel={() => setModal(null)}
+          onSave={(e) => { modal.mode === 'edit' ? actions.updateEmployee(e) : actions.addEmployee(e); setModal(null); ctx.toast('Employee saved.', 'good'); }} />}
+      </Modal>
+    </div>
+  );
+}
+
+function EmployeeForm({ initial, onCancel, onSave }) {
+  const [f, setF] = useState(initial || { name: '', email: '', role: 'cashier', status: 'active', joined: new Date().toISOString() });
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  return (
+    <div className="space-y-3">
+      <Input label="Full name" value={f.name} onChange={e => set('name', e.target.value)} />
+      <Input label="Email" value={f.email} onChange={e => set('email', e.target.value)} />
+      <Select label="Role" value={f.role} onChange={e => set('role', e.target.value)} options={ROLES.map(r => ({ value: r.key, label: r.label }))} />
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={() => onSave(f)} disabled={!f.name}>Save employee</Button>
+      </ConfirmBar>
+    </div>
+  );
+}
+
+/* ============================== EXPENSES ============================== */
+
+function Expenses({ state, actions, ctx }) {
+  const { expenses, business } = state;
+  const [modal, setModal] = useState(false);
+  const total = expenses.reduce((a, e) => a + e.amount, 0);
+  const byCategory = {};
+  expenses.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + e.amount; });
+  const catData = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
+
+  return (
+    <div className="space-y-5">
+      <div className="grid sm:grid-cols-3 gap-4">
+        <StatCard label="Total expenses" value={fmtMoney(total, business.currency)} sub="All time" />
+        <StatCard label="Categories tracked" value={Object.keys(byCategory).length} />
+        <StatCard label="Entries" value={expenses.length} />
+      </div>
+      <div className="grid lg:grid-cols-3 gap-5">
+        <Card title="By category" className="lg:col-span-1">
+          {catData.length ? <HBarList data={catData} formatValue={v => fmtMoney(v, business.currency)} /> : <p className="text-sm text-ink-muted">No expenses yet.</p>}
+        </Card>
+        <Card padded={false} className="lg:col-span-2" title="All expenses" action={<Button size="sm" variant="primary" icon={<IconPlus size={13}/>} onClick={() => setModal(true)}>Add expense</Button>}>
+          {expenses.length === 0 ? <div className="px-5 pb-5"><EmptyState icon={<IconWallet size={22}/>} title="No expenses recorded" message="Track rent, salaries, utilities, and more to see your true operating cost." /></div> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-5 py-2.5 font-medium">Date</th><th className="px-2 py-2.5 font-medium">Category</th><th className="px-2 py-2.5 font-medium">Payment</th><th className="px-5 py-2.5 font-medium text-right">Amount</th></tr></thead>
+              <tbody>{expenses.slice().sort((a,b) => new Date(b.date)-new Date(a.date)).map(e => (
+                <tr key={e.id} className="border-b border-line last:border-0">
+                  <td className="px-5 py-2.5 text-ink-muted whitespace-nowrap">{fmtDate(e.date)}</td>
+                  <td className="px-2 py-2.5"><Badge>{e.category}</Badge></td>
+                  <td className="px-2 py-2.5 text-ink-muted">{e.paymentMethod}</td>
+                  <td className="px-5 py-2.5 text-right tabular font-medium">{fmtMoney(e.amount, business.currency)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          )}
+        </Card>
+      </div>
+      <Modal open={modal} onClose={() => setModal(false)} title="Add expense" width="max-w-md">
+        <ExpenseForm paymentMethods={state.settings.paymentMethods} onCancel={() => setModal(false)}
+          onSave={(e) => { actions.addExpense(e); setModal(false); ctx.toast('Expense recorded.', 'good'); }} />
+      </Modal>
+    </div>
+  );
+}
+
+function ExpenseForm({ paymentMethods, onCancel, onSave }) {
+  const [f, setF] = useState({ category: 'Rent', amount: 0, paymentMethod: paymentMethods[0], note: '', date: new Date().toISOString() });
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  return (
+    <div className="space-y-3">
+      <Select label="Category" value={f.category} onChange={e => set('category', e.target.value)}
+        options={['Rent','Electricity','Water','Salaries','Marketing','Repairs','Utilities','Supplies','Transport','Other'].map(c => ({ value: c, label: c }))} />
+      <Input label="Amount" type="number" step="0.01" value={f.amount} onChange={e => set('amount', Number(e.target.value))} />
+      <Select label="Payment method" value={f.paymentMethod} onChange={e => set('paymentMethod', e.target.value)} options={paymentMethods.map(m => ({ value: m, label: m }))} />
+      <Textarea label="Note" rows="2" value={f.note} onChange={e => set('note', e.target.value)} />
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={() => onSave(f)} disabled={!f.amount}>Save expense</Button>
+      </ConfirmBar>
+    </div>
+  );
+}
+
+/* ============================== REPORTS ============================== */
+
+function Reports({ state }) {
+  const { sales, products, expenses, employees, business } = state;
+  const [tab, setTab] = useState('sales');
+
+  const salesByDay = {};
+  sales.forEach(s => { const k = dayKey(s.date); salesByDay[k] = (salesByDay[k] || 0) + s.total; });
+  const last14 = [...Array(14)].map((_, i) => {
+    const key = dayKey(isoDaysAgo(13 - i));
+    return { label: new Date(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }).split(' ')[0], value: salesByDay[key] || 0 };
+  });
+
+  const byEmployee = {};
+  sales.forEach(s => { byEmployee[s.employeeName] = (byEmployee[s.employeeName] || 0) + s.total; });
+  const employeeData = Object.entries(byEmployee).sort((a,b) => b[1]-a[1]).map(([label,value]) => ({label,value}));
+
+  const byPayment = {};
+  sales.forEach(s => { byPayment[s.paymentMethod] = (byPayment[s.paymentMethod] || 0) + s.total; });
+  const paymentData = Object.entries(byPayment).sort((a,b) => b[1]-a[1]).map(([label,value]) => ({label,value}));
+
+  const productQty = {}, productRevenue = {};
+  sales.forEach(s => s.items.forEach(it => { productQty[it.name] = (productQty[it.name]||0)+it.qty; productRevenue[it.name] = (productRevenue[it.name]||0)+it.total; }));
+  const productData = Object.keys(productQty).map(name => ({ name, qty: productQty[name], revenue: productRevenue[name] })).sort((a,b) => b.revenue-a.revenue);
+
+  const inventoryValuation = products.map(p => ({ name: p.name, qty: p.stock, cost: p.cost, value: p.stock * p.cost })).sort((a,b) => b.value - a.value);
+  const totalInvValue = inventoryValuation.reduce((a,p) => a+p.value, 0);
+
+  const totalExpenses = expenses.reduce((a,e) => a+e.amount, 0);
+  const totalRevenue = sales.reduce((a,s) => a+s.total, 0);
+  const cogs = sales.reduce((a, s) => a + s.items.reduce((b, it) => { const p = products.find(pp => pp.id === it.productId); return b + (p ? p.cost * it.qty : 0); }, 0), 0);
+  const grossProfit = totalRevenue - cogs;
+  const netResult = grossProfit - totalExpenses;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-paper-dim rounded-lg p-1 overflow-x-auto">
+          {[['sales','Sales'],['inventory','Inventory'],['finance','Finance']].map(([k,l]) => (
+            <button key={k} onClick={() => setTab(k)} className={'shrink-0 px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+          ))}
+        </div>
+        {tab === 'sales' && <Button variant="outline" size="sm" icon={<IconDownload size={14}/>} onClick={() => downloadCSV('sales-report.csv', sales.map(s => ({ date: s.date, customer: s.customerName, employee: s.employeeName, payment: s.paymentMethod, subtotal: s.subtotal.toFixed(2), tax: s.tax.toFixed(2), total: s.total.toFixed(2) })))}>Export CSV</Button>}
+        {tab === 'inventory' && <Button variant="outline" size="sm" icon={<IconDownload size={14}/>} onClick={() => downloadCSV('inventory-valuation.csv', inventoryValuation.map(p => ({ product: p.name, quantity: p.qty, unit_cost: p.cost.toFixed(2), total_value: p.value.toFixed(2) })))}>Export CSV</Button>}
+        {tab === 'finance' && <Button variant="outline" size="sm" icon={<IconDownload size={14}/>} onClick={() => downloadCSV('expenses.csv', expenses.map(e => ({ date: e.date, category: e.category, amount: e.amount.toFixed(2), payment: e.paymentMethod, note: e.note })))}>Export CSV</Button>}
+      </div>
+
+      {tab === 'sales' && (
+        <div className="space-y-5">
+          <Card title="Revenue, last 14 days"><BarChart data={last14} formatValue={v => fmtMoney(v, business.currency)} /></Card>
+          <div className="grid md:grid-cols-3 gap-5">
+            <Card title="Sales by employee">{employeeData.length ? <HBarList data={employeeData} formatValue={v => fmtMoney(v, business.currency)} /> : <p className="text-sm text-ink-muted">No data yet.</p>}</Card>
+            <Card title="Sales by payment method">{paymentData.length ? <HBarList data={paymentData} formatValue={v => fmtMoney(v, business.currency)} color="#2F7A54" /> : <p className="text-sm text-ink-muted">No data yet.</p>}</Card>
+            <Card title="Top products by revenue">{productData.length ? <HBarList data={productData.slice(0,6).map(p=>({label:p.name,value:p.revenue}))} formatValue={v => fmtMoney(v, business.currency)} color="#C08829" /> : <p className="text-sm text-ink-muted">No data yet.</p>}</Card>
+          </div>
+          <Card title="Sales by product" padded={false}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-5 py-2.5 font-medium">Product</th><th className="px-2 py-2.5 font-medium">Units sold</th><th className="px-5 py-2.5 font-medium text-right">Revenue</th></tr></thead>
+                <tbody>{productData.map(p => (
+                  <tr key={p.name} className="border-b border-line last:border-0">
+                    <td className="px-5 py-2.5">{p.name}</td><td className="px-2 py-2.5 tabular">{p.qty}</td><td className="px-5 py-2.5 text-right tabular font-medium">{fmtMoney(p.revenue, business.currency)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {tab === 'inventory' && (
+        <div className="space-y-5">
+          <StatCard label="Total inventory value" value={fmtMoney(totalInvValue, business.currency)} sub={products.length + ' products'} />
+          <Card title="Inventory valuation" padded={false}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-5 py-2.5 font-medium">Product</th><th className="px-2 py-2.5 font-medium">Qty</th><th className="px-2 py-2.5 font-medium">Unit cost</th><th className="px-5 py-2.5 font-medium text-right">Value</th></tr></thead>
+                <tbody>{inventoryValuation.map(p => (
+                  <tr key={p.name} className="border-b border-line last:border-0">
+                    <td className="px-5 py-2.5">{p.name}</td><td className="px-2 py-2.5 tabular">{p.qty}</td><td className="px-2 py-2.5 tabular">{fmtMoney(p.cost, business.currency)}</td>
+                    <td className="px-5 py-2.5 text-right tabular font-medium">{fmtMoney(p.value, business.currency)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {tab === 'finance' && (
+        <div className="space-y-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Revenue" value={fmtMoney(totalRevenue, business.currency)} />
+            <StatCard label="Cost of goods sold" value={fmtMoney(cogs, business.currency)} />
+            <StatCard label="Gross profit" value={fmtMoney(grossProfit, business.currency)} />
+            <StatCard label="Net operating result" value={fmtMoney(netResult, business.currency)} sub={'After ' + fmtMoney(totalExpenses, business.currency) + ' expenses'} />
+          </div>
+          <Card title="Expenses by category" padded={false}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-5 py-2.5 font-medium">Date</th><th className="px-2 py-2.5 font-medium">Category</th><th className="px-2 py-2.5 font-medium">Note</th><th className="px-5 py-2.5 font-medium text-right">Amount</th></tr></thead>
+                <tbody>{expenses.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e => (
+                  <tr key={e.id} className="border-b border-line last:border-0">
+                    <td className="px-5 py-2.5 text-ink-muted whitespace-nowrap">{fmtDate(e.date)}</td><td className="px-2 py-2.5"><Badge>{e.category}</Badge></td>
+                    <td className="px-2 py-2.5 text-ink-muted">{e.note}</td><td className="px-5 py-2.5 text-right tabular font-medium">{fmtMoney(e.amount, business.currency)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================== SETTINGS ============================== */
+
+function Settings({ state, actions, ctx }) {
+  const { business, settings } = state;
+  const [tab, setTab] = useState('business');
+  const [biz, setBiz] = useState(business);
+  const [newMethod, setNewMethod] = useState('');
+
+  const tabs = [['business','Business'],['appearance','Appearance'],['payments','Payments'],['modules','Modules'],['receipt','Receipt']];
+
+  const saveBusiness = () => { actions.updateBusiness(biz); ctx.toast('Business settings saved.', 'good'); };
+
+  return (
+    <div className="flex flex-col md:flex-row gap-5">
+      <div className="flex md:flex-col gap-1 md:w-52 shrink-0 overflow-x-auto">
+        {tabs.map(([k,l]) => (
+          <button key={k} onClick={() => setTab(k)} className={'shrink-0 text-left px-3 py-2 rounded-md text-sm whitespace-nowrap ' + (tab===k ? 'bg-ink text-paper font-medium' : 'text-ink-muted hover:bg-paper-dim')}>{l}</button>
+        ))}
+      </div>
+      <div className="flex-1 max-w-2xl">
+        {tab === 'business' && (
+          <Card title="Business information">
+            <div className="space-y-3">
+              <Input label="Business name" value={biz.name} onChange={e => setBiz(b => ({ ...b, name: e.target.value }))} />
+              <Select label="Business type" value={biz.type} onChange={e => setBiz(b => ({ ...b, type: e.target.value }))} options={BUSINESS_TYPES} />
+              <div className="grid grid-cols-2 gap-3">
+                <Select label="Currency" value={biz.currency} onChange={e => setBiz(b => ({ ...b, currency: e.target.value }))} options={Object.entries(CURRENCIES).map(([k,v]) => ({ value: k, label: k + ' — ' + v.name }))} />
+                <Input label="Tax rate (%)" type="number" value={biz.taxRate} onChange={e => setBiz(b => ({ ...b, taxRate: Number(e.target.value) }))} />
+              </div>
+              <Input label="Address" value={biz.address || ''} onChange={e => setBiz(b => ({ ...b, address: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Phone" value={biz.phone || ''} onChange={e => setBiz(b => ({ ...b, phone: e.target.value }))} />
+                <Input label="Tax number" value={biz.taxNumber || ''} onChange={e => setBiz(b => ({ ...b, taxNumber: e.target.value }))} />
+              </div>
+              <div className="pt-2"><Button variant="primary" onClick={saveBusiness}>Save changes</Button></div>
+            </div>
+          </Card>
+        )}
+
+        {tab === 'appearance' && (
+          <Card title="Appearance">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-display text-lg font-semibold" style={{ background: biz.primaryColor }}>{initials(biz.name)}</div>
+                <div>
+                  <p className="text-sm font-medium">Logo mark</p>
+                  <p className="text-xs text-ink-muted">Generated from your business name and brand color.</p>
+                </div>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-ink-muted mb-2">Primary color</span>
+                <div className="flex gap-2 flex-wrap">
+                  {['#16241D', '#C08829', '#2F5C8A', '#7A2F5C', '#2F7A54', '#B5432E'].map(c => (
+                    <button key={c} onClick={() => setBiz(b => ({ ...b, primaryColor: c }))} className={'w-8 h-8 rounded-full border-2 ' + (biz.primaryColor === c ? 'border-ink' : 'border-transparent')} style={{ background: c }} />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-line">
+                <div><p className="text-sm font-medium">Dark mode</p><p className="text-xs text-ink-muted">Switch the whole workspace to a dark theme.</p></div>
+                <button onClick={() => ctx.setDark(d => !d)} className={'w-11 h-6 rounded-full transition-colors relative ' + (ctx.dark ? 'bg-ink' : 'bg-line')}>
+                  <span className={'absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ' + (ctx.dark ? 'translate-x-5' : 'translate-x-0.5')} />
+                </button>
+              </div>
+              <div className="pt-2"><Button variant="primary" onClick={saveBusiness}>Save changes</Button></div>
+            </div>
+          </Card>
+        )}
+
+        {tab === 'payments' && (
+          <Card title="Payment methods" subtitle="Configure which payment options appear at checkout.">
+            <div className="space-y-2 mb-4">
+              {settings.paymentMethods.map(m => (
+                <div key={m} className="flex items-center justify-between px-3 py-2 border border-line rounded-md">
+                  <span className="text-sm">{m}</span>
+                  <button onClick={() => actions.removePaymentMethod(m)} className="text-ink-muted hover:text-clay"><IconTrash size={14}/></button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input value={newMethod} onChange={e => setNewMethod(e.target.value)} placeholder="e.g. M-Pesa, PayPal, Store Credit" className="flex-1 px-3 py-2 rounded-md border border-line text-sm" />
+              <Button variant="outline" onClick={() => { if (newMethod.trim()) { actions.addPaymentMethod(newMethod.trim()); setNewMethod(''); } }}>Add</Button>
+            </div>
+          </Card>
+        )}
+
+        {tab === 'modules' && (
+          <Card title="Modules" subtitle="Show or hide modules in the sidebar based on what your business needs.">
+            <div className="space-y-1">
+              {Object.entries(settings.enabledModules).map(([mod, on]) => (
+                <div key={mod} className="flex items-center justify-between px-1 py-2.5 border-b border-line last:border-0">
+                  <span className="text-sm capitalize">{mod}</span>
+                  <button onClick={() => actions.toggleModule(mod)} className={'w-11 h-6 rounded-full transition-colors relative ' + (on ? 'bg-ink' : 'bg-line')}>
+                    <span className={'absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ' + (on ? 'translate-x-5' : 'translate-x-0.5')} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {tab === 'receipt' && (
+          <Card title="Receipt template">
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {['Minimal','Professional','Compact','Detailed'].map(t => (
+                <button key={t} onClick={() => actions.setReceiptTemplate(t)} className={'py-2.5 rounded-md border text-sm ' + (settings.receiptTemplate === t ? 'border-ink bg-paper-dim font-medium' : 'border-line')}>{t}</button>
+              ))}
+            </div>
+            <p className="text-xs text-ink-muted">The receipt shown at checkout uses your business name, brand color, and the payment details from each sale.</p>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================== ROOT APP ============================== */
+
+function App() {
+  const [onboarded, setOnboarded] = useState(false);
+  const [business, setBusiness] = useState(null);
+  const [dark, setDark] = useState(false);
+  const [page, setPage] = useState('dashboard');
+  const [role, setRole] = useState('owner');
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
+
+  const [products, setProducts] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [purchases, setPurchases] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [inventoryMovements, setInventoryMovements] = useState([]);
+  const [settings, setSettings] = useState({
+    paymentMethods: ['Cash', 'Card', 'Mobile Money'],
+    enabledModules: { pos: true, inventory: true, purchasing: true, customers: true, employees: true, expenses: true, reports: true },
+    receiptTemplate: 'Professional',
+  });
+
+  useEffect(() => { document.body.classList.toggle('dark-mode', dark); }, [dark]);
+
+  const toast = useCallback((message, tone = 'good') => {
+    const id = uid('toast');
+    setToasts(t => [...t, { id, message, tone }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200);
+  }, []);
+
+  const handleOnboardComplete = (data) => {
+    const biz = {
+      name: data.name, type: data.type, country: data.country, currency: data.currency,
+      timezone: data.timezone, primaryColor: data.primaryColor, taxRate: data.taxRate, registers: data.registers,
+      locations: data.locations,
+    };
+    setBusiness(biz);
+    setDark(data.theme === 'dark');
+    if (data.dataChoice === 'demo') {
+      const seed = seedDemoData(data.currency);
+      setProducts(seed.products); setSuppliers(seed.suppliers); setCustomers(seed.customers);
+      setEmployees(seed.employees); setSales(seed.sales); setInventoryMovements(seed.inventoryMovements);
+      setExpenses(seed.expenses); setPurchases(seed.purchases);
+      setSettings(s => ({ ...s, paymentMethods: seed.paymentMethods }));
+    } else {
+      setCustomers([{ id: uid('cust'), name: 'Walk-in Customer', phone: '', email: '', totalSpent: 0, balance: 0, joined: new Date().toISOString(), isWalkIn: true }]);
+      setEmployees([{ id: uid('emp'), name: 'You (Owner)', role: 'owner', email: '', status: 'active', joined: new Date().toISOString() }]);
+    }
+    setOnboarded(true);
+  };
+
+  const actions = {
+    recordSale: (sale) => {
+      setSales(s => [sale, ...s]);
+      setProducts(prods => prods.map(p => {
+        const item = sale.items.find(i => i.productId === p.id);
+        if (!item) return p;
+        const prev = p.stock; const next = Math.max(0, p.stock - item.qty);
+        setInventoryMovements(m => [{ id: uid('mov'), date: sale.date, productId: p.id, productName: p.name, type: 'sale', qtyChange: -item.qty, prevQty: prev, newQty: next, reason: 'Sale ' + sale.id.slice(-6), ref: sale.id, user: sale.employeeName }, ...m]);
+        return { ...p, stock: next };
+      }));
+      if (sale.customerId) setCustomers(cs => cs.map(c => c.id === sale.customerId ? { ...c, totalSpent: c.totalSpent + sale.total } : c));
+    },
+    addProduct: (p) => setProducts(ps => [...ps, { ...p, id: uid('prod') }]),
+    updateProduct: (p) => setProducts(ps => ps.map(x => x.id === p.id ? p : x)),
+    deleteProduct: (id) => setProducts(ps => ps.filter(x => x.id !== id)),
+    adjustStock: (id, qty, reason) => {
+      setProducts(ps => ps.map(p => {
+        if (p.id !== id) return p;
+        const prev = p.stock; const next = Math.max(0, p.stock + qty);
+        setInventoryMovements(m => [{ id: uid('mov'), date: new Date().toISOString(), productId: p.id, productName: p.name, type: 'adjustment', qtyChange: qty, prevQty: prev, newQty: next, reason, ref: null, user: 'You' }, ...m]);
+        return { ...p, stock: next };
+      }));
+    },
+    addSupplier: (s) => setSuppliers(ss => [...ss, { ...s, id: uid('sup') }]),
+    updateSupplier: (s) => setSuppliers(ss => ss.map(x => x.id === s.id ? s : x)),
+    addPurchase: (po) => setPurchases(ps => [po, ...ps]),
+    receivePurchase: (id) => {
+      setPurchases(ps => ps.map(po => po.id === id ? { ...po, status: 'received' } : po));
+      const po = purchases.find(p => p.id === id);
+      if (!po) return;
+      setProducts(prods => prods.map(p => {
+        const item = po.items.find(i => i.productId === p.id);
+        if (!item) return p;
+        const prev = p.stock; const next = p.stock + item.qty;
+        setInventoryMovements(m => [{ id: uid('mov'), date: new Date().toISOString(), productId: p.id, productName: p.name, type: 'purchase', qtyChange: item.qty, prevQty: prev, newQty: next, reason: 'Purchase order received', ref: po.id, user: 'You' }, ...m]);
+        return { ...p, stock: next };
+      }));
+    },
+    addCustomer: (c) => setCustomers(cs => [...cs, { ...c, id: uid('cust') }]),
+    updateCustomer: (c) => setCustomers(cs => cs.map(x => x.id === c.id ? c : x)),
+    deleteCustomer: (id) => setCustomers(cs => cs.filter(x => x.id !== id)),
+    addEmployee: (e) => setEmployees(es => [...es, { ...e, id: uid('emp') }]),
+    updateEmployee: (e) => setEmployees(es => es.map(x => x.id === e.id ? e : x)),
+    addExpense: (e) => setExpenses(es => [{ ...e, id: uid('exp') }, ...es]),
+    updateBusiness: (b) => setBusiness(b),
+    addPaymentMethod: (m) => setSettings(s => ({ ...s, paymentMethods: [...s.paymentMethods, m] })),
+    removePaymentMethod: (m) => setSettings(s => ({ ...s, paymentMethods: s.paymentMethods.filter(x => x !== m) })),
+    toggleModule: (mod) => setSettings(s => ({ ...s, enabledModules: { ...s.enabledModules, [mod]: !s.enabledModules[mod] } })),
+    setReceiptTemplate: (t) => setSettings(s => ({ ...s, receiptTemplate: t })),
+  };
+
+  if (!onboarded) return <Onboarding onComplete={handleOnboardComplete} />;
+
+  const state = { business, products, suppliers, customers, employees, sales, purchases, expenses, inventoryMovements, settings };
+  const ctx = { toast, setPage, dark, setDark };
+
+  const lowStock = products.filter(p => p.stock <= p.reorderLevel);
+  const pendingPO = purchases.filter(p => p.status === 'pending');
+  const notifications = [
+    ...lowStock.slice(0, 5).map(p => ({ message: p.name + ' is at ' + p.stock + ' ' + p.unit + ' — below reorder level.', tone: p.stock <= 0 ? 'bad' : 'warn' })),
+    ...pendingPO.map(po => ({ message: 'Purchase order from ' + po.supplierName + ' is awaiting receipt.', tone: 'warn' })),
+  ];
+
+  const pageProps = { state, actions, ctx };
+  const pages = {
+    dashboard: <Dashboard {...pageProps} />,
+    pos: settings.enabledModules.pos ? <POS {...pageProps} /> : <ModuleDisabled name="Point of Sale" />,
+    products: settings.enabledModules.inventory ? <Products {...pageProps} /> : <ModuleDisabled name="Products & Inventory" />,
+    purchases: settings.enabledModules.purchasing ? <Purchases {...pageProps} /> : <ModuleDisabled name="Purchases & Suppliers" />,
+    customers: settings.enabledModules.customers ? <Customers {...pageProps} /> : <ModuleDisabled name="Customers" />,
+    employees: settings.enabledModules.employees ? <Employees {...pageProps} /> : <ModuleDisabled name="Employees" />,
+    expenses: settings.enabledModules.expenses ? <Expenses {...pageProps} /> : <ModuleDisabled name="Expenses" />,
+    reports: settings.enabledModules.reports ? <Reports {...pageProps} /> : <ModuleDisabled name="Reports" />,
+    settings: <Settings {...pageProps} />,
+  };
+
+  const activeNav = NAV_ITEMS.find(n => n.key === page);
+  const allowedPage = activeNav && activeNav.roles.includes(role) ? page : 'dashboard';
+
+  return (
+    <div className="min-h-screen flex bg-paper text-ink">
+      <Sidebar page={allowedPage} setPage={setPage} business={business} enabledModules={settings.enabledModules} role={role} collapsed={collapsed} setCollapsed={setCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <div className="flex-1 min-w-0 flex flex-col">
+        <Topbar business={business} role={role} setRole={setRole} dark={dark} setDark={setDark} setMobileOpen={setMobileOpen} notifications={notifications} page={allowedPage} />
+        <RoleBanner role={role} />
+        <main className="flex-1 p-4 md:p-6 rise-in">
+          {pages[allowedPage]}
+        </main>
+      </div>
+      <Toast toasts={toasts} />
+    </div>
+  );
+}
+
+function ModuleDisabled({ name }) {
+  return <EmptyState icon={<IconLayers size={22}/>} title={name + ' is turned off'} message="This module has been disabled for your workspace. An owner can re-enable it from Settings → Modules." />;
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+</script>
+</body>
+</html>
