@@ -163,6 +163,10 @@ const IconClock = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="9"/><pa
 const IconDownload = (p) => <Icon {...p} path={<><path d="M12 3v13"/><path d="M7 11l5 5 5-5"/><path d="M4.5 20.5h15"/></>} />;
 const IconLayers = (p) => <Icon {...p} path={<><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17.5l9 5 9-5"/></>} />;
 const IconReceipt = (p) => <Icon {...p} path={<><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.6V3z"/><path d="M9 8h6"/><path d="M9 12h6"/></>} />;
+const IconShield = (p) => <Icon {...p} path={<><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></>} />;
+const IconBranch = (p) => <Icon {...p} path={<><circle cx="6" cy="5" r="2.2"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="12" r="2.2"/><path d="M6 7.2V16.8"/><path d="M8.1 6.2C11 8 14.5 9.5 15.9 10.4"/></>} />;
+const IconLock = (p) => <Icon {...p} path={<><rect x="4.5" y="10.5" width="15" height="10" rx="1.8"/><path d="M8 10.5V7a4 4 0 018 0v3.5"/><circle cx="12" cy="15" r="1.3" fill="currentColor"/></>} />;
+const IconKey = (p) => <Icon {...p} path={<><circle cx="8" cy="14" r="3.5"/><path d="M10.5 11.5L20 2"/><path d="M15.5 6.5l2.5 2.5"/><path d="M18 4l2 2"/></>} />;
 
 /* ============================== SHARED UI ============================== */
 
@@ -347,7 +351,171 @@ function HBarList({ data, formatValue, color = '#C08829' }) {
   );
 }
 
-/* ============================== SEED DATA ============================== */
+/* ============================== AUTHORIZATION SYSTEM ============================== */
+/*
+  Centralized permission model. Every sensitive action in the app funnels through
+  can(employee, roles, permissionId) — the same shape a real backend authorization
+  layer would use (can(user, "inventory.adjust") etc, per the spec). In this
+  client-only build there is no server to enforce these against tampering, so the
+  guarantee here is "the whole app has exactly one place that decides who can do
+  what" rather than genuine server-side enforcement — a real deployment would call
+  this identical function from the API layer, not just the UI.
+*/
+
+const PERMISSION_CATALOG = [
+  { category: 'pos', categoryLabel: 'Point of Sale', permissions: [
+    { id: 'pos.view', label: 'View POS' },
+    { id: 'pos.sale.create', label: 'Create sale' },
+    { id: 'pos.order.edit', label: 'Edit order' },
+    { id: 'pos.order.cancel', label: 'Cancel order' },
+    { id: 'pos.order.hold', label: 'Hold / resume order' },
+    { id: 'pos.discount.apply', label: 'Apply discount' },
+    { id: 'pos.discount.custom', label: 'Apply custom / large discount' },
+    { id: 'pos.price.override', label: 'Change price at checkout' },
+    { id: 'pos.refund', label: 'Process refund' },
+    { id: 'pos.void', label: 'Void transaction' },
+    { id: 'pos.receipt.reprint', label: 'Reprint receipt' },
+    { id: 'pos.history.view', label: 'View previous transactions' },
+  ]},
+  { category: 'products', categoryLabel: 'Products', permissions: [
+    { id: 'products.view', label: 'View products' },
+    { id: 'products.create', label: 'Create product' },
+    { id: 'products.edit', label: 'Edit product' },
+    { id: 'products.delete', label: 'Delete product' },
+    { id: 'products.price.edit', label: 'Change selling price' },
+    { id: 'products.cost.edit', label: 'Change cost price' },
+    { id: 'products.import_export', label: 'Import / export products' },
+  ]},
+  { category: 'inventory', categoryLabel: 'Inventory', permissions: [
+    { id: 'inventory.view', label: 'View inventory' },
+    { id: 'inventory.adjust', label: 'Adjust stock' },
+    { id: 'inventory.purchase.create', label: 'Create purchase order' },
+    { id: 'inventory.purchase.receive', label: 'Receive purchase order' },
+    { id: 'inventory.valuation.view', label: 'View stock valuation' },
+    { id: 'inventory.history.view', label: 'View inventory history' },
+  ]},
+  { category: 'customers', categoryLabel: 'Customers', permissions: [
+    { id: 'customers.view', label: 'View customers' },
+    { id: 'customers.create', label: 'Create customer' },
+    { id: 'customers.edit', label: 'Edit customer' },
+    { id: 'customers.delete', label: 'Delete customer' },
+    { id: 'customers.history.view', label: "View customer purchase history" },
+  ]},
+  { category: 'suppliers', categoryLabel: 'Suppliers', permissions: [
+    { id: 'suppliers.view', label: 'View suppliers' },
+    { id: 'suppliers.create', label: 'Create supplier' },
+    { id: 'suppliers.edit', label: 'Edit supplier' },
+    { id: 'suppliers.delete', label: 'Delete supplier' },
+    { id: 'suppliers.balance.view', label: 'View supplier balances' },
+  ]},
+  { category: 'expenses', categoryLabel: 'Expenses', permissions: [
+    { id: 'expenses.view', label: 'View expenses' },
+    { id: 'expenses.create', label: 'Create expense' },
+    { id: 'expenses.edit', label: 'Edit expense' },
+    { id: 'expenses.delete', label: 'Delete expense' },
+    { id: 'expenses.approve', label: 'Approve expense' },
+  ]},
+  { category: 'reports', categoryLabel: 'Reports', permissions: [
+    { id: 'reports.sales.view', label: 'View sales reports' },
+    { id: 'reports.inventory.view', label: 'View inventory reports' },
+    { id: 'reports.financial.view', label: 'View financial reports' },
+    { id: 'reports.export', label: 'Export reports' },
+  ]},
+  { category: 'employees', categoryLabel: 'Employees', permissions: [
+    { id: 'employees.view', label: 'View employees' },
+    { id: 'employees.create', label: 'Create employee' },
+    { id: 'employees.edit', label: 'Edit employee' },
+    { id: 'employees.suspend', label: 'Suspend / reactivate employee' },
+    { id: 'employees.password.reset', label: 'Reset password / PIN' },
+    { id: 'employees.delete', label: 'Delete employee' },
+  ]},
+  { category: 'settings', categoryLabel: 'Settings', permissions: [
+    { id: 'settings.view', label: 'View settings' },
+    { id: 'settings.business.edit', label: 'Edit business info & branding' },
+    { id: 'settings.tax.edit', label: 'Change tax settings' },
+    { id: 'settings.payments.edit', label: 'Change payment methods' },
+    { id: 'settings.receipt.edit', label: 'Change receipt settings' },
+  ]},
+  { category: 'admin', categoryLabel: 'Administration', permissions: [
+    { id: 'admin.roles.manage', label: 'Manage roles & permissions' },
+    { id: 'admin.departments.manage', label: 'Manage departments' },
+    { id: 'admin.branches.manage', label: 'Manage branches' },
+    { id: 'admin.audit.view', label: 'View audit logs' },
+    { id: 'admin.security.manage', label: 'Manage security settings' },
+  ]},
+];
+const ALL_PERMISSION_IDS = PERMISSION_CATALOG.flatMap(c => c.permissions.map(p => p.id));
+function permLabel(id) {
+  for (const c of PERMISSION_CATALOG) { const p = c.permissions.find(x => x.id === id); if (p) return p.label; }
+  return id;
+}
+
+const SYSTEM_ROLE_DEFAULTS = {
+  owner: { name: 'Owner', description: 'Full, unrestricted access to every module and setting. Cannot be deleted or demoted.', permissions: ALL_PERMISSION_IDS, isOwner: true },
+  manager: { name: 'Manager', description: "Runs day-to-day operations across most modules. Can't transfer ownership, delete the business, or touch critical security settings.",
+    permissions: ALL_PERMISSION_IDS.filter(id => !['admin.security.manage','settings.tax.edit'].includes(id)) },
+  supervisor: { name: 'Supervisor', description: 'Manages an assigned operational area with day-to-day approval rights.',
+    permissions: ['pos.view','pos.sale.create','pos.order.edit','pos.order.cancel','pos.order.hold','pos.discount.apply','pos.refund','pos.receipt.reprint','pos.history.view',
+      'products.view','inventory.view','inventory.adjust','customers.view','customers.create','customers.edit','customers.history.view','reports.sales.view'] },
+  cashier: { name: 'Cashier', description: 'Front-of-house sales: POS, customers, and receipts.',
+    permissions: ['pos.view','pos.sale.create','pos.order.hold','pos.receipt.reprint','pos.history.view','products.view','customers.view','customers.create','customers.history.view'] },
+  inventory_manager: { name: 'Inventory Manager', description: 'Owns products, stock, suppliers, and purchasing.',
+    permissions: ['products.view','products.create','products.edit','products.import_export','inventory.view','inventory.adjust','inventory.purchase.create','inventory.purchase.receive',
+      'inventory.valuation.view','inventory.history.view','suppliers.view','suppliers.create','suppliers.edit','suppliers.balance.view','reports.inventory.view'] },
+  accountant: { name: 'Accountant / Finance', description: 'Expenses, payments, and financial reporting.',
+    permissions: ['expenses.view','expenses.create','expenses.edit','expenses.approve','reports.financial.view','reports.sales.view','reports.export','suppliers.balance.view'] },
+  staff: { name: 'Staff', description: 'Basic operational access with no sensitive actions.',
+    permissions: ['pos.view','products.view','customers.view'] },
+};
+
+function seedRoles() {
+  return Object.entries(SYSTEM_ROLE_DEFAULTS).map(([key, def]) => ({
+    id: key, name: def.name, description: def.description, permissions: [...def.permissions],
+    isSystem: true, isOwner: !!def.isOwner, active: true,
+  }));
+}
+
+/** Effective permissions = role permissions, plus additional grants, minus explicit restrictions. Owner is always all-access and immune to restriction. */
+function getEffectivePermissions(employee, roles) {
+  if (!employee) return new Set();
+  const role = roles.find(r => r.id === employee.roleId);
+  if (role && role.isOwner) return new Set(ALL_PERMISSION_IDS);
+  const base = new Set(role ? role.permissions : []);
+  (employee.additionalPermissions || []).forEach(p => base.add(p));
+  (employee.restrictedPermissions || []).forEach(p => base.delete(p));
+  return base;
+}
+function can(employee, roles, permissionId) {
+  if (!employee || employee.status !== 'active') return false;
+  return getEffectivePermissions(employee, roles).has(permissionId);
+}
+/** An employee who could approve a sensitive action on someone else's behalf: has the permission, is active, and isn't the requester. */
+function findApprovers(employees, roles, permissionId, excludeId) {
+  return employees.filter(e => e.id !== excludeId && e.status === 'active' && can(e, roles, permissionId));
+}
+
+async function hashPin(pin) {
+  try {
+    const data = new TextEncoder().encode(String(pin));
+    const digest = await window.crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (e) {
+    // Fallback for non-secure contexts where SubtleCrypto is unavailable — still never plaintext.
+    let h = 0; const s = String(pin);
+    for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; }
+    return 'fallback_' + Math.abs(h).toString(16);
+  }
+}
+
+const DEPARTMENTS_SEED = [
+  { id: 'dept_sales', name: 'Sales', allowedModules: ['pos','customers'] },
+  { id: 'dept_inventory', name: 'Inventory', allowedModules: ['products','purchases'] },
+  { id: 'dept_finance', name: 'Finance', allowedModules: ['expenses','reports'] },
+  { id: 'dept_mgmt', name: 'Management', allowedModules: ['pos','products','purchases','customers','employees','expenses','reports','settings'] },
+];
+const BRANCHES_SEED = [
+  { id: 'branch_main', name: 'Main Branch' },
+];
 
 const ROLES = [
   { key: 'owner', label: 'Owner' },
@@ -357,16 +525,25 @@ const ROLES = [
   { key: 'accountant', label: 'Accountant' },
 ];
 
+/* ============================== SEED DATA ============================== */
+
 const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', icon: IconDashboard, module: null, roles: ['owner','manager','cashier','inventory_manager','accountant'] },
-  { key: 'pos', label: 'Point of Sale', icon: IconPOS, module: 'pos', roles: ['owner','manager','cashier'] },
-  { key: 'products', label: 'Products & Inventory', icon: IconBox, module: 'inventory', roles: ['owner','manager','inventory_manager'] },
-  { key: 'purchases', label: 'Purchases & Suppliers', icon: IconTruck, module: 'purchasing', roles: ['owner','manager','inventory_manager'] },
-  { key: 'customers', label: 'Customers', icon: IconUsers, module: 'customers', roles: ['owner','manager','cashier'] },
-  { key: 'employees', label: 'Employees', icon: IconUser, module: 'employees', roles: ['owner','manager'] },
-  { key: 'expenses', label: 'Expenses', icon: IconWallet, module: 'expenses', roles: ['owner','manager','accountant'] },
-  { key: 'reports', label: 'Reports', icon: IconChart, module: 'reports', roles: ['owner','manager','accountant'] },
-  { key: 'settings', label: 'Settings', icon: IconSettings, module: null, roles: ['owner'] },
+  { key: 'dashboard', label: 'Dashboard', icon: IconDashboard, module: null, perm: null },
+  { key: 'pos', label: 'Point of Sale', icon: IconPOS, module: 'pos', perm: 'pos.view' },
+  { key: 'products', label: 'Products & Inventory', icon: IconBox, module: 'inventory', perm: 'products.view' },
+  { key: 'purchases', label: 'Purchases & Suppliers', icon: IconTruck, module: 'purchasing', perm: 'inventory.purchase.create' },
+  { key: 'customers', label: 'Customers', icon: IconUsers, module: 'customers', perm: 'customers.view' },
+  { key: 'expenses', label: 'Expenses', icon: IconWallet, module: 'expenses', perm: 'expenses.view' },
+  { key: 'reports', label: 'Reports', icon: IconChart, module: 'reports', perm: 'reports.sales.view' },
+];
+const ADMIN_NAV_ITEMS = [
+  { key: 'employees', label: 'Employees', icon: IconUser, module: null, perm: 'employees.view' },
+  { key: 'roles', label: 'Roles & Permissions', icon: IconShield, module: null, perm: 'admin.roles.manage' },
+  { key: 'departments', label: 'Departments', icon: IconLayers, module: null, perm: 'admin.departments.manage' },
+  { key: 'branches', label: 'Branches', icon: IconBranch, module: null, perm: 'admin.branches.manage' },
+  { key: 'activity', label: 'Activity Log', icon: IconClock, module: null, perm: 'admin.audit.view' },
+  { key: 'security', label: 'Security', icon: IconLock, module: null, perm: 'admin.security.manage' },
+  { key: 'settings', label: 'Settings', icon: IconSettings, module: null, perm: 'settings.view' },
 ];
 
 const BUSINESS_TYPES = [
@@ -429,18 +606,18 @@ function seedDemoData(currency) {
   ];
 
   const employees = [
-    { id: uid('emp'), name: 'You (Owner)', role: 'owner', email: 'owner@urbancoffee.com', status: 'active', joined: isoDaysAgo(365) },
-    { id: uid('emp'), name: 'Peter Njoroge', role: 'manager', email: 'peter@urbancoffee.com', status: 'active', joined: isoDaysAgo(200) },
-    { id: uid('emp'), name: 'Lucy Chebet', role: 'cashier', email: 'lucy@urbancoffee.com', status: 'active', joined: isoDaysAgo(120) },
-    { id: uid('emp'), name: 'Samuel Kiptoo', role: 'cashier', email: 'samuel@urbancoffee.com', status: 'active', joined: isoDaysAgo(60) },
-    { id: uid('emp'), name: 'Ruth Adhiambo', role: 'inventory_manager', email: 'ruth@urbancoffee.com', status: 'active', joined: isoDaysAgo(150) },
-    { id: uid('emp'), name: 'Moses Kamau', role: 'accountant', email: 'moses@urbancoffee.com', status: 'active', joined: isoDaysAgo(90) },
+    { id: uid('emp'), name: 'You (Owner)', roleId: 'owner', employeeCode: 'EMP-001', email: 'owner@urbancoffee.com', username: 'owner', phone: '+254 700 000 001', departmentId: 'dept_mgmt', branchIds: 'all', status: 'active', joined: isoDaysAgo(365), lastLogin: new Date().toISOString(), pin: '1234', additionalPermissions: [], restrictedPermissions: [] },
+    { id: uid('emp'), name: 'Peter Njoroge', roleId: 'manager', employeeCode: 'EMP-002', email: 'peter@urbancoffee.com', username: 'peter.n', phone: '+254 700 111 002', departmentId: 'dept_mgmt', branchIds: 'all', status: 'active', joined: isoDaysAgo(200), lastLogin: isoDaysAgo(0), pin: '2580', additionalPermissions: [], restrictedPermissions: [] },
+    { id: uid('emp'), name: 'Lucy Chebet', roleId: 'cashier', employeeCode: 'EMP-003', email: 'lucy@urbancoffee.com', username: 'lucy.c', phone: '+254 700 111 003', departmentId: 'dept_sales', branchIds: ['branch_main'], status: 'active', joined: isoDaysAgo(120), lastLogin: isoDaysAgo(0), pin: '1111', additionalPermissions: ['pos.discount.apply'], restrictedPermissions: [] },
+    { id: uid('emp'), name: 'Samuel Kiptoo', roleId: 'cashier', employeeCode: 'EMP-004', email: 'samuel@urbancoffee.com', username: 'samuel.k', phone: '+254 700 111 004', departmentId: 'dept_sales', branchIds: ['branch_main'], status: 'active', joined: isoDaysAgo(60), lastLogin: isoDaysAgo(1), pin: '2222', additionalPermissions: [], restrictedPermissions: [] },
+    { id: uid('emp'), name: 'Ruth Adhiambo', roleId: 'inventory_manager', employeeCode: 'EMP-005', email: 'ruth@urbancoffee.com', username: 'ruth.a', phone: '+254 700 111 005', departmentId: 'dept_inventory', branchIds: ['branch_main'], status: 'active', joined: isoDaysAgo(150), lastLogin: isoDaysAgo(0), pin: '3333', additionalPermissions: [], restrictedPermissions: [] },
+    { id: uid('emp'), name: 'Moses Kamau', roleId: 'accountant', employeeCode: 'EMP-006', email: 'moses@urbancoffee.com', username: 'moses.k', phone: '+254 700 111 006', departmentId: 'dept_finance', branchIds: ['branch_main'], status: 'suspended', joined: isoDaysAgo(90), lastLogin: isoDaysAgo(9), pin: '4444', additionalPermissions: [], restrictedPermissions: ['expenses.delete'] },
   ];
 
   let sales = [];
   let inventoryMovements = [];
   const paymentMethods = ['Cash', 'Card', 'Mobile Money'];
-  const cashierPool = employees.filter(e => e.role === 'cashier' || e.role === 'owner' || e.role === 'manager');
+  const cashierPool = employees.filter(e => ['cashier','owner','manager'].includes(e.roleId) && e.status === 'active');
 
   for (let day = 13; day >= 0; day--) {
     const numSales = 5 + Math.floor(Math.random() * 9);
@@ -499,7 +676,29 @@ function seedDemoData(currency) {
       total: 50 * products[6].cost + 40 * products[7].cost },
   ];
 
-  return { products, suppliers, customers, employees, sales, inventoryMovements, expenses, purchases, paymentMethods };
+  const roles = seedRoles();
+  const departments = DEPARTMENTS_SEED.map(d => ({ ...d }));
+  const branches = BRANCHES_SEED.map(b => ({ ...b }));
+
+  const auditLogs = [
+    { id: uid('log'), date: isoDaysAgo(9), employeeName: 'Moses Kamau', action: 'Account suspended', module: 'employees', target: 'Moses Kamau', result: 'success', metadata: 'Suspended by owner after policy review' },
+    { id: uid('log'), date: isoDaysAgo(5), employeeName: 'Peter Njoroge', action: 'Approved refund', module: 'pos', target: 'Sale ' + (sales[3] ? sales[3].id.slice(-6) : ''), result: 'success', metadata: 'Requested by Lucy Chebet' },
+    { id: uid('log'), date: isoDaysAgo(3), employeeName: 'Ruth Adhiambo', action: 'Adjusted stock', module: 'inventory', target: products[2].name, result: 'success', metadata: '-3 units, damaged goods' },
+    { id: uid('log'), date: isoDaysAgo(1), employeeName: 'You (Owner)', action: 'Changed role permissions', module: 'admin', target: 'Cashier', result: 'success', metadata: 'Added: Apply discount' },
+  ];
+  const failedLogins = [
+    { id: uid('fl'), date: isoDaysAgo(4), username: 'samuel.k', reason: 'Incorrect PIN (3 attempts)' },
+  ];
+
+  return { products, suppliers, customers, employees, sales, inventoryMovements, expenses, purchases, paymentMethods, roles, departments, branches, auditLogs, failedLogins };
+}
+
+/** Hash every seeded employee's demo PIN (never keep plaintext around, even in a demo). */
+async function finalizeSeedPins(employees) {
+  return Promise.all(employees.map(async (e) => {
+    const { pin, ...rest } = e;
+    return { ...rest, pinHash: pin ? await hashPin(pin) : null };
+  }));
 }
 
 /* ============================== ONBOARDING ============================== */
@@ -660,8 +859,22 @@ function Onboarding({ onComplete }) {
 
 /* ============================== APP SHELL ============================== */
 
-function Sidebar({ page, setPage, business, enabledModules, role, collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
-  const visibleItems = NAV_ITEMS.filter(item => (!item.module || enabledModules[item.module]) && item.roles.includes(role));
+function Sidebar({ page, setPage, business, enabledModules, currentEmployee, roles, collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
+  const visible = items => items.filter(item => (!item.module || enabledModules[item.module]) && (!item.perm || can(currentEmployee, roles, item.perm)));
+  const mainItems = visible(NAV_ITEMS);
+  const adminItems = visible(ADMIN_NAV_ITEMS);
+  const NavButton = (item) => {
+    const Ico = item.icon;
+    const active = page === item.key;
+    return (
+      <button key={item.key} onClick={() => { setPage(item.key); setMobileOpen(false); }}
+        className={'w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm transition-colors ' +
+          (active ? 'bg-paper text-ink font-medium' : 'text-paper/75 hover:bg-white/10')}>
+        <Ico size={18} />
+        {!collapsed && <span className="truncate">{item.label}</span>}
+      </button>
+    );
+  };
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 bg-ink/40 z-30 md:hidden" onClick={() => setMobileOpen(false)} />}
@@ -674,18 +887,14 @@ function Sidebar({ page, setPage, business, enabledModules, role, collapsed, set
           {!collapsed && <span className="font-display font-medium truncate">{business.name}</span>}
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-0.5">
-          {visibleItems.map(item => {
-            const Ico = item.icon;
-            const active = page === item.key;
-            return (
-              <button key={item.key} onClick={() => { setPage(item.key); setMobileOpen(false); }}
-                className={'w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm transition-colors ' +
-                  (active ? 'bg-paper text-ink font-medium' : 'text-paper/75 hover:bg-white/10')}>
-                <Ico size={18} />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-              </button>
-            );
-          })}
+          {mainItems.map(NavButton)}
+          {adminItems.length > 0 && (
+            <>
+              {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-wider text-paper/40 px-2.5 pt-4 pb-1.5">Admin</p>}
+              {collapsed && <div className="h-px bg-white/10 mx-2 my-3" />}
+              {adminItems.map(NavButton)}
+            </>
+          )}
         </nav>
         <button onClick={() => setCollapsed(c => !c)} className="hidden md:flex items-center justify-center py-3 border-t border-white/10 text-paper/60 hover:text-paper hover:bg-white/5">
           <IconChevronRight size={16} className={collapsed ? '' : 'rotate-180'} style={{ transition: 'transform .2s' }} />
@@ -695,20 +904,22 @@ function Sidebar({ page, setPage, business, enabledModules, role, collapsed, set
   );
 }
 
-function RoleBanner({ role }) {
-  if (role === 'owner') return null;
-  const label = ROLES.find(r => r.key === role)?.label;
+function EmployeeBanner({ employee, roles }) {
+  if (!employee) return null;
+  const role = roles.find(r => r.id === employee.roleId);
+  if (role && role.isOwner) return null;
   return (
     <div className="bg-brass-light text-brass-dark text-xs px-4 py-2 flex items-center gap-2 border-b border-brass/30">
-      <IconUser size={13} /> Viewing as <span className="font-semibold">{label}</span> — navigation reflects this role's permissions.
+      <IconUser size={13} /> Logged in as <span className="font-semibold">{employee.name}</span> ({role ? role.name : 'No role'}) — navigation and actions reflect this person's permissions.
     </div>
   );
 }
 
-function Topbar({ business, role, setRole, dark, setDark, setMobileOpen, notifications, page }) {
+function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, roles, dark, setDark, setMobileOpen, notifications, page, allNav }) {
   const [showNotif, setShowNotif] = useState(false);
-  const [showRole, setShowRole] = useState(false);
-  const pageLabel = (NAV_ITEMS.find(n => n.key === page) || {}).label || '';
+  const [showEmp, setShowEmp] = useState(false);
+  const pageLabel = (allNav.find(n => n.key === page) || {}).label || '';
+  const activeEmployees = employees.filter(e => e.status === 'active');
   return (
     <div className="sticky top-0 z-20 bg-paper/90 backdrop-blur border-b border-line">
       <div className="h-16 flex items-center gap-3 px-4 md:px-6">
@@ -741,19 +952,23 @@ function Topbar({ business, role, setRole, dark, setDark, setMobileOpen, notific
           )}
         </div>
         <div className="relative">
-          <button onClick={() => setShowRole(s => !s)} className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-paper-dim">
-            <div className="w-8 h-8 rounded-full bg-ink text-paper flex items-center justify-center text-xs font-medium">{initials(ROLES.find(r=>r.key===role)?.label)}</div>
+          <button onClick={() => setShowEmp(s => !s)} className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-paper-dim">
+            <div className="w-8 h-8 rounded-full bg-ink text-paper flex items-center justify-center text-xs font-medium">{initials(currentEmployee?.name)}</div>
             <IconChevronDown size={14} className="text-ink-muted hidden sm:block" />
           </button>
-          {showRole && (
-            <div className="absolute right-0 mt-2 w-56 bg-white border border-line rounded-lg shadow-xl p-1.5 rise-in">
-              <p className="text-xs font-semibold text-ink-muted px-2.5 py-1.5">View as role</p>
-              {ROLES.map(r => (
-                <button key={r.key} onClick={() => { setRole(r.key); setShowRole(false); }}
-                  className={'w-full text-left px-2.5 py-2 rounded-md text-sm flex items-center justify-between hover:bg-paper-dim ' + (role === r.key ? 'font-medium' : '')}>
-                  {r.label} {role === r.key && <IconCheck size={14} />}
-                </button>
-              ))}
+          {showEmp && (
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-line rounded-lg shadow-xl p-1.5 rise-in max-h-80 overflow-y-auto">
+              <p className="text-xs font-semibold text-ink-muted px-2.5 py-1.5">Logged in as</p>
+              {activeEmployees.map(e => {
+                const role = roles.find(r => r.id === e.roleId);
+                return (
+                  <button key={e.id} onClick={() => { setCurrentEmployeeId(e.id); setShowEmp(false); }}
+                    className={'w-full text-left px-2.5 py-2 rounded-md text-sm flex items-center justify-between hover:bg-paper-dim ' + (currentEmployee?.id === e.id ? 'font-medium' : '')}>
+                    <span className="truncate"><span className="block">{e.name}</span><span className="block text-xs text-ink-muted">{role ? role.name : '—'}</span></span>
+                    {currentEmployee?.id === e.id && <IconCheck size={14} className="shrink-0" />}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -859,8 +1074,11 @@ function Dashboard({ state, ctx }) {
 
 /* ============================== POS ============================== */
 
+const CUSTOM_DISCOUNT_THRESHOLD = 20; // % — beyond this, pos.discount.custom (or manager approval) is required
+
 function POS({ state, actions, ctx }) {
-  const { products, customers, business, employees, settings } = state;
+  const { products, customers, business, employees, settings, roles } = state;
+  const currentEmployee = ctx.currentEmployee;
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [cart, setCart] = useState([]);
@@ -870,6 +1088,12 @@ function POS({ state, actions, ctx }) {
   const [showCheckout, setShowCheckout] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [note, setNote] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+
+  const canDiscount = can(currentEmployee, roles, 'pos.discount.apply');
+  const canCustomDiscount = can(currentEmployee, roles, 'pos.discount.custom');
+  const canRefund = can(currentEmployee, roles, 'pos.refund');
+  const canViewHistory = can(currentEmployee, roles, 'pos.history.view');
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
   const filtered = products.filter(p =>
@@ -916,20 +1140,39 @@ function POS({ state, actions, ctx }) {
     setHeldOrders(hs => hs.filter(x => x.id !== h.id));
   };
 
-  const completeSale = (paymentMethod, splitPayments) => {
+  const finalizeSale = (paymentMethod, splitPayments) => {
     const cust = customers.find(c => c.id === customerId);
-    const emp = employees[0];
+    const emp = currentEmployee || employees[0];
     const sale = {
       id: uid('sale'), date: new Date().toISOString(),
       items: cart.map(i => ({ productId: i.productId, name: i.name, qty: i.qty, price: i.price, total: i.price * i.qty })),
-      subtotal, discount: discountAmt, tax, total,
+      subtotal, discount: discountAmt, discountPct: discount, tax, total,
       paymentMethod: splitPayments ? 'Split (' + splitPayments.map(p => p.method).join(' + ') + ')' : paymentMethod,
       splitPayments: splitPayments || null,
       customerId, customerName: cust ? cust.name : 'Walk-in', employeeId: emp.id, employeeName: emp.name, status: 'completed', note,
     };
     actions.recordSale(sale);
+    ctx.logActivity(emp.name, 'Created sale', 'pos', '#' + sale.id.slice(-6).toUpperCase(), 'success', fmtMoney(total, business.currency) + (discountAmt > 0 ? ', ' + discount + '% discount' : ''));
     setReceipt(sale);
     setCart([]); setDiscount(0); setNote(''); setShowCheckout(false);
+  };
+
+  const completeSale = async (paymentMethod, splitPayments) => {
+    if (discount > CUSTOM_DISCOUNT_THRESHOLD && !canCustomDiscount) {
+      const ok = await ctx.requestApproval('pos.discount.custom', discount + '% discount exceeds the ' + CUSTOM_DISCOUNT_THRESHOLD + '% limit for this role.', 'Cart total ' + fmtMoney(total, business.currency));
+      if (!ok) { ctx.toast('Sale not completed — approval was not granted.', 'bad'); return; }
+    }
+    finalizeSale(paymentMethod, splitPayments);
+  };
+
+  const handleRefund = async (sale) => {
+    if (!canRefund) {
+      const ok = await ctx.requestApproval('pos.refund', 'Refund of ' + fmtMoney(sale.total, business.currency) + ' for sale #' + sale.id.slice(-6).toUpperCase(), sale.customerName);
+      if (!ok) { ctx.toast('Refund not processed — approval was not granted.', 'bad'); return; }
+    }
+    actions.refundSale(sale.id);
+    ctx.logActivity(currentEmployee?.name, 'Processed refund', 'pos', '#' + sale.id.slice(-6).toUpperCase(), 'success', fmtMoney(sale.total, business.currency));
+    ctx.toast('Refund processed — stock restored.', 'good');
   };
 
   return (
@@ -949,6 +1192,7 @@ function POS({ state, actions, ctx }) {
               ))}
             </div>
           )}
+          {canViewHistory && <Button variant="outline" size="md" icon={<IconReceipt size={15}/>} onClick={() => setShowHistory(true)}>Recent sales</Button>}
         </div>
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
           {categories.map(c => (
@@ -1002,9 +1246,13 @@ function POS({ state, actions, ctx }) {
           </div>
           <div className="px-4 py-3 border-t border-line space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-ink-muted">Discount %</span>
-              <input type="number" min="0" max="100" value={discount} onChange={e => setDiscount(Number(e.target.value))} className="w-16 text-right px-2 py-1 border border-line rounded tabular" />
+              <span className="text-ink-muted">Discount % {!canDiscount && <span className="text-ink-muted/60">(no permission)</span>}</span>
+              <input type="number" min="0" max="100" value={discount} disabled={!canDiscount}
+                onChange={e => setDiscount(Number(e.target.value))} className="w-16 text-right px-2 py-1 border border-line rounded tabular disabled:bg-paper-dim disabled:text-ink-muted" />
             </div>
+            {discount > CUSTOM_DISCOUNT_THRESHOLD && !canCustomDiscount && (
+              <p className="text-xs text-brass-dark flex items-center gap-1"><IconAlert size={12}/> Discounts over {CUSTOM_DISCOUNT_THRESHOLD}% need manager approval.</p>
+            )}
             <div className="flex justify-between text-sm"><span className="text-ink-muted">Subtotal</span><span className="tabular">{fmtMoney(subtotal, business.currency)}</span></div>
             {discountAmt > 0 && <div className="flex justify-between text-sm"><span className="text-ink-muted">Discount</span><span className="tabular text-clay">-{fmtMoney(discountAmt, business.currency)}</span></div>}
             <div className="flex justify-between text-sm"><span className="text-ink-muted">Tax ({business.taxRate}%)</span><span className="tabular">{fmtMoney(tax, business.currency)}</span></div>
@@ -1019,6 +1267,23 @@ function POS({ state, actions, ctx }) {
 
       <Modal open={showCheckout} onClose={() => setShowCheckout(false)} title="Take payment">
         <CheckoutForm total={total} currency={business.currency} paymentMethods={settings.paymentMethods} onComplete={completeSale} />
+      </Modal>
+
+      <Modal open={showHistory} onClose={() => setShowHistory(false)} title="Recent sales" width="max-w-2xl">
+        <div className="divide-y divide-line max-h-[60vh] overflow-y-auto -mx-5">
+          {state.sales.slice(0, 30).map(s => (
+            <div key={s.id} className="px-5 py-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">#{s.id.slice(-6).toUpperCase()} · {s.customerName}</p>
+                <p className="text-xs text-ink-muted">{fmtDateTime(s.date)} · {s.employeeName} · {s.paymentMethod}</p>
+              </div>
+              <p className="text-sm font-medium tabular">{fmtMoney(s.total, business.currency)}</p>
+              {s.status === 'refunded' ? <Badge tone="bad">Refunded</Badge> :
+                <Button size="sm" variant="outline" onClick={() => handleRefund(s)}>Refund</Button>}
+            </div>
+          ))}
+          {state.sales.length === 0 && <p className="text-sm text-ink-muted text-center py-8">No sales yet.</p>}
+        </div>
       </Modal>
 
       <Modal open={!!receipt} onClose={() => setReceipt(null)} title="Sale complete" width="max-w-sm"
@@ -1109,7 +1374,7 @@ function Receipt({ sale, business }) {
 
 /* ============================== PRODUCTS & INVENTORY ============================== */
 
-function ProductForm({ initial, categories, suppliers, currency, onSave, onCancel }) {
+function ProductForm({ initial, categories, suppliers, currency, onSave, onCancel, canEditPrice = true, canEditCost = true }) {
   const [f, setF] = useState(initial || { name: '', category: categories[0] || '', sku: '', barcode: '', cost: 0, price: 0, stock: 0, reorderLevel: 5, unit: 'pc', supplierId: suppliers[0]?.id || '', status: 'active' });
   const set = (k, v) => setF(x => ({ ...x, [k]: v }));
   return (
@@ -1126,8 +1391,8 @@ function ProductForm({ initial, categories, suppliers, currency, onSave, onCance
         <Input label="Barcode" value={f.barcode} onChange={e => set('barcode', e.target.value)} />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Input label={'Cost price (' + currency + ')'} type="number" step="0.01" value={f.cost} onChange={e => set('cost', Number(e.target.value))} />
-        <Input label={'Selling price (' + currency + ')'} type="number" step="0.01" value={f.price} onChange={e => set('price', Number(e.target.value))} />
+        <Input label={'Cost price (' + currency + ')' + (!canEditCost ? ' 🔒' : '')} type="number" step="0.01" value={f.cost} disabled={!canEditCost} className="disabled:bg-paper-dim disabled:text-ink-muted" onChange={e => set('cost', Number(e.target.value))} />
+        <Input label={'Selling price (' + currency + ')' + (!canEditPrice ? ' 🔒' : '')} type="number" step="0.01" value={f.price} disabled={!canEditPrice} className="disabled:bg-paper-dim disabled:text-ink-muted" onChange={e => set('price', Number(e.target.value))} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Input label="Stock on hand" type="number" value={f.stock} onChange={e => set('stock', Number(e.target.value))} />
@@ -1144,7 +1409,14 @@ function ProductForm({ initial, categories, suppliers, currency, onSave, onCance
 }
 
 function Products({ state, actions, ctx }) {
-  const { products, suppliers, business, inventoryMovements } = state;
+  const { products, suppliers, business, inventoryMovements, roles } = state;
+  const currentEmployee = ctx.currentEmployee;
+  const canCreate = can(currentEmployee, roles, 'products.create');
+  const canEdit = can(currentEmployee, roles, 'products.edit');
+  const canDelete = can(currentEmployee, roles, 'products.delete');
+  const canEditPrice = can(currentEmployee, roles, 'products.price.edit');
+  const canEditCost = can(currentEmployee, roles, 'products.cost.edit');
+  const canAdjustStock = can(currentEmployee, roles, 'inventory.adjust');
   const [tab, setTab] = useState('products');
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null); // {mode:'add'|'edit', product}
@@ -1156,6 +1428,16 @@ function Products({ state, actions, ctx }) {
   const lowStock = products.filter(p => p.stock <= p.reorderLevel);
   const inventoryValue = products.reduce((a, p) => a + p.stock * p.cost, 0);
 
+  const handleDelete = async (p) => {
+    if (!canDelete) {
+      const ok = await ctx.requestApproval('products.delete', 'Delete product "' + p.name + '"', p.name);
+      if (!ok) { ctx.toast('Product not deleted — approval was not granted.', 'bad'); return; }
+    }
+    actions.deleteProduct(p.id);
+    ctx.logActivity(currentEmployee?.name, 'Deleted product', 'products', p.name, 'success', '');
+    ctx.toast('Product removed.', 'good');
+  };
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -1164,7 +1446,7 @@ function Products({ state, actions, ctx }) {
             <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
           ))}
         </div>
-        {tab === 'products' && <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add product</Button>}
+        {tab === 'products' && canCreate && <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add product</Button>}
       </div>
 
       {tab === 'products' && (
@@ -1196,9 +1478,9 @@ function Products({ state, actions, ctx }) {
                     <td className="px-2 py-2.5">{p.stock <= 0 ? <Badge tone="bad">Out of stock</Badge> : p.stock <= p.reorderLevel ? <Badge tone="warn">Low</Badge> : <Badge tone="good">In stock</Badge>}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex justify-end gap-1">
-                        <button onClick={() => setAdjust(p)} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Adjust stock"><IconLayers size={14}/></button>
-                        <button onClick={() => setModal({ mode: 'edit', product: p })} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Edit"><IconEdit size={14}/></button>
-                        <button onClick={() => { actions.deleteProduct(p.id); ctx.toast('Product removed.', 'good'); }} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Delete"><IconTrash size={14}/></button>
+                        {canAdjustStock && <button onClick={() => setAdjust(p)} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Adjust stock"><IconLayers size={14}/></button>}
+                        {canEdit && <button onClick={() => setModal({ mode: 'edit', product: p })} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Edit"><IconEdit size={14}/></button>}
+                        <button onClick={() => handleDelete(p)} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Delete"><IconTrash size={14}/></button>
                       </div>
                     </td>
                   </tr>
@@ -1252,8 +1534,9 @@ function Products({ state, actions, ctx }) {
 
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit product' : 'Add product'}>
         {modal && <ProductForm initial={modal.product} categories={categories} suppliers={suppliers} currency={business.currency}
+          canEditPrice={canEditPrice} canEditCost={canEditCost}
           onCancel={() => setModal(null)}
-          onSave={(f) => { modal.mode === 'edit' ? actions.updateProduct(f) : actions.addProduct(f); setModal(null); ctx.toast('Product saved.', 'good'); }} />}
+          onSave={(f) => { modal.mode === 'edit' ? actions.updateProduct(f) : actions.addProduct(f); setModal(null); ctx.logActivity(currentEmployee?.name, modal.mode === 'edit' ? 'Edited product' : 'Created product', 'products', f.name, 'success', ''); ctx.toast('Product saved.', 'good'); }} />}
       </Modal>
 
       <Modal open={!!adjust} onClose={() => setAdjust(null)} title={'Adjust stock — ' + (adjust?.name || '')} width="max-w-sm">
@@ -1518,61 +1801,790 @@ function CustomerForm({ initial, onCancel, onSave }) {
   );
 }
 
+/* ============================== SHARED ADMIN COMPONENTS ============================== */
+
+function StatusBadge({ status }) {
+  if (status === 'active') return <Badge tone="good">Active</Badge>;
+  if (status === 'suspended') return <Badge tone="warn">Suspended</Badge>;
+  return <Badge tone="bad">Deactivated</Badge>;
+}
+
+/** Grouped, plain-language permission checklist. Shared by role editing and per-employee special access. */
+function PermissionChecklist({ selected, onToggle, disabledIds = [], search = '' }) {
+  const q = search.toLowerCase();
+  return (
+    <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+      {PERMISSION_CATALOG.map(cat => {
+        const items = cat.permissions.filter(p => !q || p.label.toLowerCase().includes(q) || cat.categoryLabel.toLowerCase().includes(q));
+        if (!items.length) return null;
+        return (
+          <div key={cat.category}>
+            <p className="text-xs font-semibold text-ink-muted mb-1.5">{cat.categoryLabel}</p>
+            <div className="grid sm:grid-cols-2 gap-1.5">
+              {items.map(p => {
+                const checked = selected.includes(p.id);
+                const locked = disabledIds.includes(p.id);
+                return (
+                  <label key={p.id} className={'flex items-center gap-2 text-sm px-2 py-1.5 rounded-md ' + (locked ? 'opacity-50' : 'hover:bg-paper-dim cursor-pointer')}>
+                    <input type="checkbox" checked={checked} disabled={locked} onChange={() => onToggle(p.id)} className="rounded border-line" />
+                    <span>{p.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ManagerApprovalModal({ approval, employees, roles, onApprove, onCancel, onFailedAttempt }) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [checking, setChecking] = useState(false);
+  if (!approval) return null;
+  const approvers = findApprovers(employees, roles, approval.permissionId, approval.requesterId);
+
+  const submit = async () => {
+    setChecking(true); setError('');
+    const hash = await hashPin(pin);
+    const match = approvers.find(a => a.pinHash === hash);
+    setChecking(false);
+    if (match) { onApprove(match); setPin(''); }
+    else { setError('Incorrect PIN. Ask a manager to enter theirs.'); setPin(''); onFailedAttempt && onFailedAttempt(); }
+  };
+
+  return (
+    <Modal open={true} onClose={onCancel} title="Manager approval required" width="max-w-sm">
+      <div className="space-y-3">
+        <div className="flex items-start gap-2.5 bg-brass-light text-brass-dark rounded-lg p-3 text-sm">
+          <IconLock size={16} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">{permLabel(approval.permissionId)}</p>
+            <p className="text-xs mt-0.5">{approval.description}</p>
+          </div>
+        </div>
+        {approvers.length === 0 ? (
+          <p className="text-sm text-ink-muted">No active employee currently holds this permission, so it can't be approved right now.</p>
+        ) : (
+          <>
+            <Input label="Manager PIN" type="password" inputMode="numeric" value={pin} onChange={e => setPin(e.target.value)} autoFocus
+              onKeyDown={e => e.key === 'Enter' && pin && submit()} />
+            {error && <p className="text-xs text-clay">{error}</p>}
+          </>
+        )}
+        <ConfirmBar>
+          <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+          {approvers.length > 0 && <Button variant="brass" disabled={!pin || checking} onClick={submit}>{checking ? 'Checking…' : 'Approve'}</Button>}
+        </ConfirmBar>
+      </div>
+    </Modal>
+  );
+}
+
 /* ============================== EMPLOYEES ============================== */
 
-function Employees({ state, actions, ctx }) {
-  const { employees, sales } = state;
-  const [modal, setModal] = useState(null);
+const EMPLOYEE_WIZARD_STEPS = ['Details', 'Department', 'Role', 'Permissions', 'Special access', 'Branches', 'Review'];
+
+function EmployeeWizard({ initial, roles, departments, branches, onCancel, onSave }) {
+  const [step, setStep] = useState(0);
+  const [f, setF] = useState(initial || {
+    name: '', employeeCode: '', email: '', username: '', phone: '', departmentId: departments[0]?.id || '',
+    roleId: 'cashier', branchIds: branches.length <= 1 ? (branches[0] ? [branches[0].id] : []) : [],
+    branchMode: 'single', status: 'active', pin: '', additionalPermissions: [], restrictedPermissions: [],
+  });
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  const role = roles.find(r => r.id === f.roleId);
+  const rolePerms = role ? role.permissions : [];
+  const effective = new Set([...rolePerms, ...f.additionalPermissions].filter(p => !f.restrictedPermissions.includes(p)));
+
+  const toggleAdditional = (id) => setF(x => {
+    if (rolePerms.includes(id)) return x; // already granted by role, nothing to add
+    const has = x.additionalPermissions.includes(id);
+    return { ...x, additionalPermissions: has ? x.additionalPermissions.filter(p => p !== id) : [...x.additionalPermissions, id] };
+  });
+  const toggleRestricted = (id) => setF(x => {
+    const has = x.restrictedPermissions.includes(id);
+    return { ...x, restrictedPermissions: has ? x.restrictedPermissions.filter(p => p !== id) : [...x.restrictedPermissions, id] };
+  });
+
+  const canNext = () => {
+    if (step === 0) return f.name.trim().length > 0;
+    return true;
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-ink-muted">{employees.length} team member{employees.length !== 1 ? 's' : ''}</p>
-        <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add employee</Button>
+      <div className="flex items-center gap-1.5 mb-5 flex-wrap">
+        {EMPLOYEE_WIZARD_STEPS.map((s, i) => (
+          <React.Fragment key={s}>
+            <span className={'text-xs px-2 py-1 rounded-full ' + (i === step ? 'bg-ink text-paper font-medium' : i < step ? 'text-moss' : 'text-ink-muted')}>{i + 1}. {s}</span>
+            {i < EMPLOYEE_WIZARD_STEPS.length - 1 && <span className="text-ink-muted/40">→</span>}
+          </React.Fragment>
+        ))}
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {employees.length === 0 && <div className="col-span-full"><EmptyState icon={<IconUser size={22}/>} title="No employees yet" message="Add your team and assign roles to control what each person can access." action={<Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add employee</Button>} /></div>}
-        {employees.map(e => {
-          const empSales = sales.filter(s => s.employeeId === e.id);
-          return (
-            <Card key={e.id}>
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-ink text-paper flex items-center justify-center font-medium text-sm">{initials(e.name)}</div>
-                  <div>
-                    <p className="font-medium">{e.name}</p>
-                    <p className="text-xs text-ink-muted">{e.email}</p>
+
+      {step === 0 && (
+        <div className="space-y-3">
+          <Input label="Full name" value={f.name} onChange={e => set('name', e.target.value)} autoFocus />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Employee ID" value={f.employeeCode} onChange={e => set('employeeCode', e.target.value)} placeholder="EMP-007" />
+            <Input label="Phone" value={f.phone} onChange={e => set('phone', e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Email / username" value={f.email} onChange={e => set('email', e.target.value)} />
+            <Input label="Login username" value={f.username} onChange={e => set('username', e.target.value)} />
+          </div>
+          <Input label="Temporary PIN (4 digits, for POS approvals)" inputMode="numeric" maxLength={6} value={f.pin} onChange={e => set('pin', e.target.value)} hint="Never stored as plaintext — it's hashed before saving." />
+        </div>
+      )}
+
+      {step === 1 && (
+        <div className="space-y-2">
+          <p className="text-sm text-ink-muted mb-2">Which department does {f.name || 'this employee'} belong to?</p>
+          {departments.map(d => (
+            <button key={d.id} onClick={() => set('departmentId', d.id)} className={'w-full text-left px-3 py-2.5 rounded-lg border flex items-center justify-between ' + (f.departmentId === d.id ? 'border-ink bg-paper-dim' : 'border-line')}>
+              <span className="text-sm font-medium">{d.name}</span>
+              {f.departmentId === d.id && <IconCheck size={15}/>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-2">
+          <p className="text-sm text-ink-muted mb-2">Choose this employee's role — it sets their baseline permissions.</p>
+          {roles.filter(r => r.active && !r.isOwner).map(r => (
+            <button key={r.id} onClick={() => set('roleId', r.id)} className={'w-full text-left px-3 py-2.5 rounded-lg border ' + (f.roleId === r.id ? 'border-ink bg-paper-dim' : 'border-line')}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">{r.name}</span>
+                {f.roleId === r.id && <IconCheck size={15}/>}
+              </div>
+              <p className="text-xs text-ink-muted mt-0.5">{r.description}</p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {step === 3 && (
+        <div>
+          <p className="text-sm text-ink-muted mb-2">Permissions that come from the <span className="font-medium text-ink">{role?.name}</span> role:</p>
+          <div className="border border-line rounded-lg p-3 max-h-72 overflow-y-auto space-y-3">
+            {PERMISSION_CATALOG.map(cat => {
+              const items = cat.permissions.filter(p => rolePerms.includes(p.id));
+              if (!items.length) return null;
+              return (
+                <div key={cat.category}>
+                  <p className="text-xs font-semibold text-ink-muted mb-1">{cat.categoryLabel}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.map(p => <Badge key={p.id} tone="good">{p.label}</Badge>)}
                   </div>
                 </div>
-                <button onClick={() => setModal({ mode: 'edit', employee: e })} className="text-ink-muted hover:text-ink"><IconEdit size={14}/></button>
-              </div>
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-line text-sm">
-                <Badge tone="brand">{ROLES.find(r => r.key === e.role)?.label}</Badge>
-                <span className="text-ink-muted">{empSales.length} sales</span>
-              </div>
-            </Card>
-          );
-        })}
+              );
+            })}
+            {rolePerms.length === 0 && <p className="text-sm text-ink-muted">This role has no permissions assigned.</p>}
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div>
+          <p className="text-sm text-ink-muted mb-1">Give <span className="font-medium text-ink">{f.name || 'this employee'}</span> access to anything extra, beyond their role — or restrict something their role would normally allow.</p>
+          <p className="text-xs font-semibold text-ink-muted mt-3 mb-1.5">Additional permissions</p>
+          <PermissionChecklist selected={[...rolePerms, ...f.additionalPermissions]} disabledIds={rolePerms} onToggle={toggleAdditional} />
+          <p className="text-xs font-semibold text-ink-muted mt-3 mb-1.5">Restricted (explicitly denied, overrides role)</p>
+          <div className="flex flex-wrap gap-1.5">
+            {rolePerms.length === 0 && <p className="text-xs text-ink-muted">Nothing to restrict — this role grants no permissions.</p>}
+            {rolePerms.map(id => (
+              <button key={id} onClick={() => toggleRestricted(id)}
+                className={'text-xs px-2 py-1 rounded-full border ' + (f.restrictedPermissions.includes(id) ? 'bg-clay-light border-clay text-clay' : 'border-line text-ink-muted')}>
+                {permLabel(id)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div>
+          <p className="text-sm text-ink-muted mb-2">Which branches can {f.name || 'this employee'} access?</p>
+          <div className="flex gap-2 mb-3">
+            <button onClick={() => set('branchIds', 'all')} className={'flex-1 py-2 rounded-md border text-sm ' + (f.branchIds === 'all' ? 'border-ink bg-paper-dim' : 'border-line')}>All branches</button>
+            <button onClick={() => set('branchIds', [])} className={'flex-1 py-2 rounded-md border text-sm ' + (Array.isArray(f.branchIds) ? 'border-ink bg-paper-dim' : 'border-line')}>Specific branches</button>
+          </div>
+          {Array.isArray(f.branchIds) && (
+            <div className="space-y-1.5">
+              {branches.map(b => {
+                const checked = f.branchIds.includes(b.id);
+                return (
+                  <label key={b.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-md hover:bg-paper-dim cursor-pointer">
+                    <input type="checkbox" checked={checked} onChange={() => set('branchIds', checked ? f.branchIds.filter(x => x !== b.id) : [...f.branchIds, b.id])} className="rounded border-line" />
+                    {b.name}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {step === 6 && (
+        <div className="space-y-3">
+          <p className="text-sm">
+            <span className="font-medium">{f.name}</span> will be able to access <span className="font-medium">{effective.size}</span> permission{effective.size !== 1 ? 's' : ''} as a <span className="font-medium">{role?.name}</span>{f.departmentId ? ' in ' + (departments.find(d=>d.id===f.departmentId)?.name || '') : ''}.
+          </p>
+          <div className="border border-line rounded-lg divide-y divide-line text-sm">
+            {['pos','products','inventory','customers','suppliers','expenses','reports','employees','settings','admin'].map(cat => {
+              const catDef = PERMISSION_CATALOG.find(c => c.category === cat);
+              const total = catDef.permissions.length;
+              const has = catDef.permissions.filter(p => effective.has(p.id)).length;
+              return (
+                <div key={cat} className="flex items-center justify-between px-3 py-2">
+                  <span>{catDef.categoryLabel}</span>
+                  <Badge tone={has === 0 ? 'default' : has === total ? 'good' : 'warn'}>{has === 0 ? 'No access' : has === total ? 'Full access' : has + ' of ' + total}</Badge>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-ink-muted">Branch access: {f.branchIds === 'all' ? 'All branches' : (f.branchIds.length ? f.branchIds.map(id => branches.find(b=>b.id===id)?.name).join(', ') : 'None selected')}</p>
+        </div>
+      )}
+
+      <div className="flex justify-between mt-6">
+        {step > 0 ? <Button variant="ghost" onClick={() => setStep(s => s - 1)}>Back</Button> : <Button variant="ghost" onClick={onCancel}>Cancel</Button>}
+        {step < EMPLOYEE_WIZARD_STEPS.length - 1
+          ? <Button variant="primary" disabled={!canNext()} onClick={() => setStep(s => s + 1)}>Continue</Button>
+          : <Button variant="brass" onClick={() => onSave(f)}>{initial ? 'Save changes' : 'Create employee'}</Button>}
       </div>
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit employee' : 'Add employee'} width="max-w-md">
-        {modal && <EmployeeForm initial={modal.employee} onCancel={() => setModal(null)}
-          onSave={(e) => { modal.mode === 'edit' ? actions.updateEmployee(e) : actions.addEmployee(e); setModal(null); ctx.toast('Employee saved.', 'good'); }} />}
+    </div>
+  );
+}
+
+function EmployeeProfile({ employee, roles, departments, branches, auditLogs, sales, onClose, onEdit }) {
+  const role = roles.find(r => r.id === employee.roleId);
+  const dept = departments.find(d => d.id === employee.departmentId);
+  const rolePerms = role ? role.permissions : [];
+  const additional = employee.additionalPermissions || [];
+  const restricted = employee.restrictedPermissions || [];
+  const recentActivity = auditLogs.filter(l => l.employeeName === employee.name).slice(0, 8);
+  const empSales = sales.filter(s => s.employeeId === employee.id);
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-ink text-paper flex items-center justify-center font-medium">{initials(employee.name)}</div>
+        <div className="flex-1">
+          <p className="font-display text-lg font-medium">{employee.name}</p>
+          <p className="text-xs text-ink-muted">{employee.employeeCode} · {role?.name}{dept ? ' · ' + dept.name : ''}</p>
+        </div>
+        <StatusBadge status={employee.status} />
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div><p className="text-xs text-ink-muted">Email</p><p>{employee.email || '—'}</p></div>
+        <div><p className="text-xs text-ink-muted">Phone</p><p>{employee.phone || '—'}</p></div>
+        <div><p className="text-xs text-ink-muted">Branch access</p><p>{employee.branchIds === 'all' ? 'All branches' : (employee.branchIds || []).map(id => branches.find(b=>b.id===id)?.name).join(', ') || '—'}</p></div>
+        <div><p className="text-xs text-ink-muted">Last login</p><p>{employee.lastLogin ? fmtDateTime(employee.lastLogin) : 'Never'}</p></div>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <Card padded={true} className="!p-3">
+          <p className="text-xs font-semibold text-ink-muted mb-1.5">Role permissions</p>
+          <p className="text-2xl font-display font-semibold">{rolePerms.length}</p>
+          <p className="text-xs text-ink-muted">from {role?.name}</p>
+        </Card>
+        <Card padded={true} className="!p-3">
+          <p className="text-xs font-semibold text-moss mb-1.5">Additional</p>
+          <p className="text-2xl font-display font-semibold text-moss">{additional.length}</p>
+          <p className="text-xs text-ink-muted">individually granted</p>
+        </Card>
+        <Card padded={true} className="!p-3">
+          <p className="text-xs font-semibold text-clay mb-1.5">Restricted</p>
+          <p className="text-2xl font-display font-semibold text-clay">{restricted.length}</p>
+          <p className="text-xs text-ink-muted">explicitly denied</p>
+        </Card>
+      </div>
+      {additional.length > 0 && (
+        <div><p className="text-xs font-semibold text-ink-muted mb-1.5">Additional permissions</p>
+          <div className="flex flex-wrap gap-1.5">{additional.map(id => <Badge key={id} tone="good">{permLabel(id)}</Badge>)}</div>
+        </div>
+      )}
+      {restricted.length > 0 && (
+        <div><p className="text-xs font-semibold text-ink-muted mb-1.5">Restricted permissions</p>
+          <div className="flex flex-wrap gap-1.5">{restricted.map(id => <Badge key={id} tone="bad">{permLabel(id)}</Badge>)}</div>
+        </div>
+      )}
+      <div>
+        <p className="text-xs font-semibold text-ink-muted mb-1.5">Recent activity ({empSales.length} sales handled)</p>
+        <div className="border border-line rounded-lg divide-y divide-line max-h-40 overflow-y-auto">
+          {recentActivity.length === 0 && <p className="text-sm text-ink-muted px-3 py-4 text-center">No recorded activity yet.</p>}
+          {recentActivity.map(l => (
+            <div key={l.id} className="px-3 py-2 text-sm flex justify-between gap-2">
+              <span className="truncate">{l.action}{l.target ? ' — ' + l.target : ''}</span>
+              <span className="text-xs text-ink-muted whitespace-nowrap">{fmtDate(l.date)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onClose}>Close</Button>
+        {!role?.isOwner && <Button variant="primary" onClick={onEdit}>Edit access</Button>}
+      </ConfirmBar>
+    </div>
+  );
+}
+
+function Employees({ state, actions, ctx }) {
+  const { employees, sales, roles, departments, branches } = state;
+  const currentEmployee = ctx.currentEmployee;
+  const canCreate = can(currentEmployee, roles, 'employees.create');
+  const canEdit = can(currentEmployee, roles, 'employees.edit');
+  const canSuspend = can(currentEmployee, roles, 'employees.suspend');
+  const canResetPin = can(currentEmployee, roles, 'employees.password.reset');
+  const canDelete = can(currentEmployee, roles, 'employees.delete');
+
+  const [wizard, setWizard] = useState(null); // {mode:'add'|'edit', employee}
+  const [profileFor, setProfileFor] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = employees.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
+  const activeCount = employees.filter(e => e.status === 'active').length;
+
+  const handleSave = (f) => {
+    if (wizard.mode === 'edit') {
+      actions.updateEmployee({ ...wizard.employee, ...f });
+      ctx.logActivity(currentEmployee?.name, 'Edited employee', 'employees', f.name, 'success', '');
+    } else {
+      actions.addEmployee(f);
+      ctx.logActivity(currentEmployee?.name, 'Created employee', 'employees', f.name, 'success', 'Role: ' + (roles.find(r=>r.id===f.roleId)?.name));
+    }
+    setWizard(null);
+    ctx.toast('Employee saved.', 'good');
+  };
+
+  const handleSuspendToggle = (e) => {
+    if (e.status === 'active') { actions.setEmployeeStatus(e.id, 'suspended'); ctx.logActivity(currentEmployee?.name, 'Suspended employee', 'employees', e.name, 'success', ''); ctx.toast(e.name + ' suspended.', 'warn'); }
+    else { actions.setEmployeeStatus(e.id, 'active'); ctx.logActivity(currentEmployee?.name, 'Reactivated employee', 'employees', e.name, 'success', ''); ctx.toast(e.name + ' reactivated.', 'good'); }
+  };
+  const handleDeactivate = (e) => {
+    actions.setEmployeeStatus(e.id, 'deactivated');
+    ctx.logActivity(currentEmployee?.name, 'Deactivated employee', 'employees', e.name, 'success', '');
+    ctx.toast(e.name + ' deactivated.', 'warn');
+  };
+  const handleResetPin = async (e) => {
+    const newPin = String(Math.floor(1000 + Math.random() * 9000));
+    await actions.resetEmployeePin(e.id, newPin);
+    ctx.logActivity(currentEmployee?.name, 'Reset PIN', 'employees', e.name, 'success', '');
+    ctx.toast(e.name + "'s new temporary PIN is " + newPin + ' — share it securely.', 'good');
+  };
+  const handleDelete = (e) => {
+    if (e.roleId === 'owner' || roles.find(r => r.id === e.roleId)?.isOwner) { ctx.toast('The owner account is protected and cannot be deleted.', 'bad'); return; }
+    actions.deleteEmployee(e.id);
+    ctx.logActivity(currentEmployee?.name, 'Deleted employee', 'employees', e.name, 'success', '');
+    ctx.toast(e.name + ' removed.', 'good');
+  };
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Team members" value={employees.length} />
+        <StatCard label="Active" value={activeCount} />
+        <StatCard label="Roles in use" value={new Set(employees.map(e => e.roleId)).size} />
+        <StatCard label="Departments" value={departments.length} />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 max-w-xs w-full">
+          <IconSearch size={14} className="text-ink-muted" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employees…" className="bg-transparent outline-none text-sm w-full" />
+        </div>
+        {canCreate && <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setWizard({ mode: 'add' })}>Add employee</Button>}
+      </div>
+      <Card padded={false}>
+        {filtered.length === 0 ? <EmptyState icon={<IconUser size={22}/>} title="No employees yet" message="Add your team and assign roles to control what each person can access." action={canCreate ? <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setWizard({ mode: 'add' })}>Add employee</Button> : null} /> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-ink-muted border-b border-line">
+              <th className="px-4 py-2.5 font-medium">Name</th><th className="px-2 py-2.5 font-medium">Role</th><th className="px-2 py-2.5 font-medium">Department</th>
+              <th className="px-2 py-2.5 font-medium">Branch</th><th className="px-2 py-2.5 font-medium">Status</th><th className="px-2 py-2.5 font-medium">Last active</th>
+              <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+            </tr></thead>
+            <tbody>{filtered.map(e => {
+              const role = roles.find(r => r.id === e.roleId);
+              const dept = departments.find(d => d.id === e.departmentId);
+              const isOwner = role?.isOwner;
+              return (
+                <tr key={e.id} className="border-b border-line last:border-0 hover:bg-paper-dim/50">
+                  <td className="px-4 py-2.5 cursor-pointer" onClick={() => setProfileFor(e)}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-ink text-paper flex items-center justify-center text-xs font-medium shrink-0">{initials(e.name)}</div>
+                      <span className="font-medium">{e.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-2 py-2.5"><Badge tone="brand">{role?.name || '—'}</Badge></td>
+                  <td className="px-2 py-2.5 text-ink-muted">{dept?.name || '—'}</td>
+                  <td className="px-2 py-2.5 text-ink-muted">{e.branchIds === 'all' ? 'All' : (e.branchIds || []).length}</td>
+                  <td className="px-2 py-2.5"><StatusBadge status={e.status} /></td>
+                  <td className="px-2 py-2.5 text-ink-muted whitespace-nowrap">{e.lastLogin ? fmtDate(e.lastLogin) : 'Never'}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex justify-end gap-1">
+                      {canEdit && !isOwner && <button onClick={() => setWizard({ mode: 'edit', employee: e })} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Edit"><IconEdit size={14}/></button>}
+                      {canResetPin && <button onClick={() => handleResetPin(e)} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Reset PIN"><IconKey size={14}/></button>}
+                      {canSuspend && !isOwner && <button onClick={() => handleSuspendToggle(e)} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title={e.status === 'active' ? 'Suspend' : 'Reactivate'}><IconLock size={14}/></button>}
+                      {canDelete && !isOwner && <button onClick={() => handleDelete(e)} className="p-1.5 rounded hover:bg-paper-dim text-ink-muted" title="Delete"><IconTrash size={14}/></button>}
+                      {isOwner && <span className="text-xs text-ink-muted italic px-1">Protected</span>}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+        )}
+      </Card>
+
+      <Modal open={!!wizard} onClose={() => setWizard(null)} title={wizard?.mode === 'edit' ? 'Edit employee access' : 'Add employee'} width="max-w-xl">
+        {wizard && <EmployeeWizard initial={wizard.employee} roles={roles} departments={departments} branches={branches} onCancel={() => setWizard(null)} onSave={handleSave} />}
+      </Modal>
+
+      <Modal open={!!profileFor} onClose={() => setProfileFor(null)} title="Employee profile" width="max-w-lg">
+        {profileFor && <EmployeeProfile employee={profileFor} roles={roles} departments={departments} branches={branches} auditLogs={state.auditLogs} sales={sales}
+          onClose={() => setProfileFor(null)} onEdit={() => { setWizard({ mode: 'edit', employee: profileFor }); setProfileFor(null); }} />}
       </Modal>
     </div>
   );
 }
 
-function EmployeeForm({ initial, onCancel, onSave }) {
-  const [f, setF] = useState(initial || { name: '', email: '', role: 'cashier', status: 'active', joined: new Date().toISOString() });
-  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+/* ============================== ROLES & PERMISSIONS ============================== */
+
+function RoleEditor({ initial, onCancel, onSave }) {
+  const [f, setF] = useState(initial || { name: '', description: '', permissions: [] });
+  const [search, setSearch] = useState('');
+  const toggle = (id) => setF(x => ({ ...x, permissions: x.permissions.includes(id) ? x.permissions.filter(p => p !== id) : [...x.permissions, id] }));
   return (
     <div className="space-y-3">
-      <Input label="Full name" value={f.name} onChange={e => set('name', e.target.value)} />
-      <Input label="Email" value={f.email} onChange={e => set('email', e.target.value)} />
-      <Select label="Role" value={f.role} onChange={e => set('role', e.target.value)} options={ROLES.map(r => ({ value: r.key, label: r.label }))} />
+      <Input label="Role name" value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} placeholder="e.g. Senior Cashier" />
+      <Textarea label="Description" rows="2" value={f.description} onChange={e => setF(x => ({ ...x, description: e.target.value }))} />
+      <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5">
+        <IconSearch size={14} className="text-ink-muted" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search permissions…" className="bg-transparent outline-none text-sm w-full" />
+      </div>
+      <p className="text-xs text-ink-muted">{f.permissions.length} of {ALL_PERMISSION_IDS.length} permissions selected</p>
+      <PermissionChecklist selected={f.permissions} onToggle={toggle} search={search} />
       <ConfirmBar>
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button variant="primary" onClick={() => onSave(f)} disabled={!f.name}>Save employee</Button>
+        <Button variant="primary" disabled={!f.name} onClick={() => onSave(f)}>Save role</Button>
       </ConfirmBar>
+    </div>
+  );
+}
+
+function RolesPermissions({ state, actions, ctx }) {
+  const { roles, employees } = state;
+  const currentEmployee = ctx.currentEmployee;
+  const canManage = can(currentEmployee, roles, 'admin.roles.manage');
+  const [tab, setTab] = useState('roles');
+  const [editor, setEditor] = useState(null);
+  const editableRoles = roles.filter(r => !r.isOwner);
+
+  const handleSave = (f) => {
+    if (editor.mode === 'edit') {
+      actions.updateRole({ ...editor.role, name: f.name, description: f.description, permissions: f.permissions });
+      ctx.logActivity(currentEmployee?.name, 'Edited role', 'admin', f.name, 'success', f.permissions.length + ' permissions');
+    } else {
+      actions.addRole(f);
+      ctx.logActivity(currentEmployee?.name, 'Created role', 'admin', f.name, 'success', f.permissions.length + ' permissions');
+    }
+    setEditor(null);
+    ctx.toast('Role saved.', 'good');
+  };
+
+  const matrixRoles = roles.filter(r => r.active);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-paper-dim rounded-lg p-1">
+          {[['roles','Roles'],['matrix','Permission Matrix']].map(([k,l]) => (
+            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+          ))}
+        </div>
+        {tab === 'roles' && canManage && <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setEditor({ mode: 'add' })}>Create role</Button>}
+      </div>
+
+      {tab === 'roles' && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {roles.map(r => {
+            const memberCount = employees.filter(e => e.roleId === r.id).length;
+            return (
+              <Card key={r.id} className={!r.active ? 'opacity-50' : ''}>
+                <div className="flex items-start justify-between mb-1">
+                  <p className="font-medium">{r.name}</p>
+                  {r.isSystem ? <Badge>System</Badge> : <Badge tone="brand">Custom</Badge>}
+                </div>
+                <p className="text-xs text-ink-muted mb-3 min-h-[2.5em]">{r.description}</p>
+                <div className="flex items-center justify-between text-xs text-ink-muted pt-2 border-t border-line">
+                  <span>{r.permissions.length} permissions</span>
+                  <span>{memberCount} employee{memberCount !== 1 ? 's' : ''}</span>
+                </div>
+                {canManage && !r.isOwner && (
+                  <div className="flex gap-1.5 mt-3">
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => setEditor({ mode: 'edit', role: r })}>Edit</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { actions.duplicateRole(r.id); ctx.toast('Role duplicated.', 'good'); }}>Duplicate</Button>
+                    {!r.isSystem && <Button size="sm" variant="ghost" onClick={() => actions.toggleRoleActive(r.id)}>{r.active ? 'Disable' : 'Enable'}</Button>}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'matrix' && (
+        <Card padded={false}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-line">
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-ink-muted sticky left-0 bg-paper-raised">Permission</th>
+                {matrixRoles.map(r => <th key={r.id} className="px-3 py-2.5 text-xs font-medium text-ink-muted text-center whitespace-nowrap">{r.name}</th>)}
+              </tr></thead>
+              <tbody>
+                {PERMISSION_CATALOG.map(cat => (
+                  <React.Fragment key={cat.category}>
+                    <tr className="bg-paper-dim/60"><td colSpan={matrixRoles.length + 1} className="px-4 py-1.5 text-xs font-semibold text-ink-muted sticky left-0">{cat.categoryLabel}</td></tr>
+                    {cat.permissions.map(p => (
+                      <tr key={p.id} className="border-b border-line last:border-0">
+                        <td className="px-4 py-2 sticky left-0 bg-paper-raised">{p.label}</td>
+                        {matrixRoles.map(r => {
+                          const checked = r.isOwner || r.permissions.includes(p.id);
+                          return (
+                            <td key={r.id} className="px-3 py-2 text-center">
+                              <input type="checkbox" checked={checked} disabled={r.isOwner || !canManage}
+                                onChange={() => actions.toggleRolePermission(r.id, p.id)}
+                                className="rounded border-line" />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      <Modal open={!!editor} onClose={() => setEditor(null)} title={editor?.mode === 'edit' ? 'Edit role' : 'Create custom role'} width="max-w-lg">
+        {editor && <RoleEditor initial={editor.mode === 'edit' ? { name: editor.role.name, description: editor.role.description, permissions: editor.role.permissions } : null}
+          onCancel={() => setEditor(null)} onSave={handleSave} />}
+      </Modal>
+    </div>
+  );
+}
+
+/* ============================== DEPARTMENTS ============================== */
+
+const MODULE_OPTIONS = [
+  { key: 'pos', label: 'Point of Sale' }, { key: 'products', label: 'Products & Inventory' },
+  { key: 'purchases', label: 'Purchases & Suppliers' }, { key: 'customers', label: 'Customers' },
+  { key: 'employees', label: 'Employees' }, { key: 'expenses', label: 'Expenses' },
+  { key: 'reports', label: 'Reports' }, { key: 'settings', label: 'Settings' },
+];
+
+function DepartmentForm({ initial, onCancel, onSave }) {
+  const [f, setF] = useState(initial || { name: '', allowedModules: [] });
+  const toggle = (k) => setF(x => ({ ...x, allowedModules: x.allowedModules.includes(k) ? x.allowedModules.filter(m => m !== k) : [...x.allowedModules, k] }));
+  return (
+    <div className="space-y-3">
+      <Input label="Department name" value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} />
+      <div>
+        <span className="block text-xs font-medium text-ink-muted mb-2">Modules this department can access</span>
+        <div className="grid grid-cols-2 gap-1.5">
+          {MODULE_OPTIONS.map(m => (
+            <label key={m.key} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-md hover:bg-paper-dim cursor-pointer">
+              <input type="checkbox" checked={f.allowedModules.includes(m.key)} onChange={() => toggle(m.key)} className="rounded border-line" />
+              {m.label}
+            </label>
+          ))}
+        </div>
+      </div>
+      <ConfirmBar>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" disabled={!f.name} onClick={() => onSave(f)}>Save department</Button>
+      </ConfirmBar>
+    </div>
+  );
+}
+
+function Departments({ state, actions, ctx }) {
+  const { departments, employees, roles } = state;
+  const canManage = can(ctx.currentEmployee, roles, 'admin.departments.manage');
+  const [modal, setModal] = useState(null);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-ink-muted">Group employees and scope which modules each department can see.</p>
+        {canManage && <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add department</Button>}
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {departments.length === 0 && <div className="col-span-full"><EmptyState icon={<IconLayers size={22}/>} title="No departments yet" message="Create departments to organize employees and scope module access." /></div>}
+        {departments.map(d => {
+          const memberCount = employees.filter(e => e.departmentId === d.id).length;
+          return (
+            <Card key={d.id}>
+              <div className="flex items-start justify-between mb-2">
+                <p className="font-medium">{d.name}</p>
+                {canManage && <button onClick={() => setModal({ mode: 'edit', department: d })} className="text-ink-muted hover:text-ink"><IconEdit size={14}/></button>}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {d.allowedModules.map(m => <Badge key={m}>{MODULE_OPTIONS.find(o => o.key === m)?.label || m}</Badge>)}
+                {d.allowedModules.length === 0 && <span className="text-xs text-ink-muted">No modules assigned</span>}
+              </div>
+              <p className="text-xs text-ink-muted pt-2 border-t border-line">{memberCount} employee{memberCount !== 1 ? 's' : ''}</p>
+            </Card>
+          );
+        })}
+      </div>
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit department' : 'Add department'} width="max-w-md">
+        {modal && <DepartmentForm initial={modal.department} onCancel={() => setModal(null)}
+          onSave={(f) => { modal.mode === 'edit' ? actions.updateDepartment({ ...modal.department, ...f }) : actions.addDepartment(f); setModal(null); ctx.toast('Department saved.', 'good'); }} />}
+      </Modal>
+    </div>
+  );
+}
+
+/* ============================== BRANCHES ============================== */
+
+function Branches({ state, actions, ctx }) {
+  const { branches, employees, roles } = state;
+  const canManage = can(ctx.currentEmployee, roles, 'admin.branches.manage');
+  const [name, setName] = useState('');
+  return (
+    <div>
+      <p className="text-sm text-ink-muted mb-4">Manage locations and see how many employees are assigned to each.</p>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        {branches.map(b => {
+          const count = employees.filter(e => e.branchIds === 'all' || (Array.isArray(e.branchIds) && e.branchIds.includes(b.id))).length;
+          return (
+            <Card key={b.id}>
+              <div className="flex items-center justify-between">
+                <p className="font-medium">{b.name}</p>
+                {canManage && branches.length > 1 && <button onClick={() => actions.deleteBranch(b.id)} className="text-ink-muted hover:text-clay"><IconTrash size={14}/></button>}
+              </div>
+              <p className="text-xs text-ink-muted mt-2 pt-2 border-t border-line">{count} employee{count !== 1 ? 's' : ''} with access</p>
+            </Card>
+          );
+        })}
+      </div>
+      {canManage && (
+        <div className="flex gap-2 max-w-sm">
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="New branch name" className="flex-1 px-3 py-2 rounded-md border border-line text-sm" />
+          <Button variant="outline" onClick={() => { if (name.trim()) { actions.addBranch(name.trim()); ctx.toast('Branch added.', 'good'); setName(''); } }}>Add branch</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================== ACTIVITY LOG ============================== */
+
+function ActivityLog({ state }) {
+  const { auditLogs, employees } = state;
+  const [search, setSearch] = useState('');
+  const [moduleFilter, setModuleFilter] = useState('All');
+  const modules = ['All', ...Array.from(new Set(auditLogs.map(l => l.module)))];
+  const filtered = auditLogs.filter(l =>
+    (moduleFilter === 'All' || l.module === moduleFilter) &&
+    (search === '' || l.employeeName?.toLowerCase().includes(search.toLowerCase()) || l.action.toLowerCase().includes(search.toLowerCase()) || (l.target || '').toLowerCase().includes(search.toLowerCase()))
+  );
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 flex-1 max-w-xs">
+          <IconSearch size={14} className="text-ink-muted" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search activity…" className="bg-transparent outline-none text-sm w-full" />
+        </div>
+        <select value={moduleFilter} onChange={e => setModuleFilter(e.target.value)} className="px-3 py-2 border border-line rounded-md text-sm bg-white capitalize">
+          {modules.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+        <Button variant="outline" size="sm" icon={<IconDownload size={14}/>} onClick={() => downloadCSV('activity-log.csv', filtered.map(l => ({ date: l.date, employee: l.employeeName, action: l.action, module: l.module, target: l.target, result: l.result, metadata: l.metadata })))}>Export</Button>
+      </div>
+      <Card padded={false}>
+        {filtered.length === 0 ? <EmptyState icon={<IconClock size={22}/>} title="No activity recorded" message="Actions across the platform — sales, edits, approvals, and admin changes — will show up here." /> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-4 py-2.5 font-medium">Date</th><th className="px-2 py-2.5 font-medium">Employee</th><th className="px-2 py-2.5 font-medium">Action</th><th className="px-2 py-2.5 font-medium">Module</th><th className="px-2 py-2.5 font-medium">Target</th><th className="px-4 py-2.5 font-medium">Details</th></tr></thead>
+            <tbody>{filtered.slice(0, 200).map(l => (
+              <tr key={l.id} className="border-b border-line last:border-0">
+                <td className="px-4 py-2.5 text-ink-muted whitespace-nowrap">{fmtDateTime(l.date)}</td>
+                <td className="px-2 py-2.5">{l.employeeName || '—'}</td>
+                <td className="px-2 py-2.5">{l.action}</td>
+                <td className="px-2 py-2.5"><Badge>{l.module}</Badge></td>
+                <td className="px-2 py-2.5 text-ink-muted">{l.target || '—'}</td>
+                <td className="px-4 py-2.5 text-ink-muted">{l.metadata || '—'}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ============================== SECURITY CENTER ============================== */
+
+function SecurityCenter({ state, actions, ctx }) {
+  const { employees, auditLogs, failedLogins, roles } = state;
+  const activeEmployees = employees.filter(e => e.status === 'active');
+  const permissionChanges = auditLogs.filter(l => l.module === 'admin');
+  return (
+    <div className="space-y-5">
+      <div className="bg-brass-light text-brass-dark text-xs rounded-lg px-4 py-2.5 flex items-start gap-2">
+        <IconAlert size={14} className="mt-0.5 shrink-0" />
+        This is a client-only demo, so these panels simulate what a security center shows. Real enforcement — rejecting unauthorized requests, revoking live sessions — has to happen on a server, not in the browser.
+      </div>
+      <div className="grid sm:grid-cols-3 gap-4">
+        <StatCard label="Active sessions" value={activeEmployees.length} />
+        <StatCard label="Failed login attempts" value={failedLogins.length} />
+        <StatCard label="Permission changes logged" value={permissionChanges.length} />
+      </div>
+      <Card title="Active sessions" padded={false}>
+        <div className="divide-y divide-line">
+          {activeEmployees.map(e => (
+            <div key={e.id} className="px-5 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{e.name}</p>
+                <p className="text-xs text-ink-muted">{roles.find(r=>r.id===e.roleId)?.name} · Logged in {e.lastLogin ? fmtDateTime(e.lastLogin) : '—'}</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => { actions.setEmployeeStatus(e.id, 'suspended'); ctx.toast('Session revoked — ' + e.name + ' suspended.', 'warn'); }}>Revoke</Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card title="Failed login / PIN attempts" padded={false}>
+        {failedLogins.length === 0 ? <p className="text-sm text-ink-muted px-5 py-6 text-center">No failed attempts recorded.</p> : (
+          <div className="divide-y divide-line">
+            {failedLogins.map(f => (
+              <div key={f.id} className="px-5 py-3 flex items-center justify-between text-sm">
+                <span>{f.username}</span>
+                <span className="text-ink-muted">{f.reason}</span>
+                <span className="text-xs text-ink-muted whitespace-nowrap">{fmtDateTime(f.date)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      <Card title="Recent permission & security changes" padded={false}>
+        {permissionChanges.length === 0 ? <p className="text-sm text-ink-muted px-5 py-6 text-center">No changes recorded.</p> : (
+          <div className="divide-y divide-line">
+            {permissionChanges.slice(0, 15).map(l => (
+              <div key={l.id} className="px-5 py-3 flex items-center justify-between text-sm">
+                <span>{l.employeeName} — {l.action} {l.target ? '(' + l.target + ')' : ''}</span>
+                <span className="text-xs text-ink-muted whitespace-nowrap">{fmtDateTime(l.date)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -1880,10 +2892,11 @@ function App() {
   const [business, setBusiness] = useState(null);
   const [dark, setDark] = useState(false);
   const [page, setPage] = useState('dashboard');
-  const [role, setRole] = useState('owner');
+  const [currentEmployeeId, setCurrentEmployeeId] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [approval, setApproval] = useState(null); // {permissionId, description, targetLabel, requesterId, resolve}
 
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -1893,6 +2906,11 @@ function App() {
   const [purchases, setPurchases] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [inventoryMovements, setInventoryMovements] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [failedLogins, setFailedLogins] = useState([]);
   const [settings, setSettings] = useState({
     paymentMethods: ['Cash', 'Card', 'Mobile Money'],
     enabledModules: { pos: true, inventory: true, purchasing: true, customers: true, employees: true, expenses: true, reports: true },
@@ -1907,7 +2925,11 @@ function App() {
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200);
   }, []);
 
-  const handleOnboardComplete = (data) => {
+  const logActivity = useCallback((employeeName, action, module, target, result, metadata) => {
+    setAuditLogs(l => [{ id: uid('log'), date: new Date().toISOString(), employeeName, action, module, target, result, metadata }, ...l]);
+  }, []);
+
+  const handleOnboardComplete = async (data) => {
     const biz = {
       name: data.name, type: data.type, country: data.country, currency: data.currency,
       timezone: data.timezone, primaryColor: data.primaryColor, taxRate: data.taxRate, registers: data.registers,
@@ -1917,13 +2939,23 @@ function App() {
     setDark(data.theme === 'dark');
     if (data.dataChoice === 'demo') {
       const seed = seedDemoData(data.currency);
+      const hashedEmployees = await finalizeSeedPins(seed.employees);
       setProducts(seed.products); setSuppliers(seed.suppliers); setCustomers(seed.customers);
-      setEmployees(seed.employees); setSales(seed.sales); setInventoryMovements(seed.inventoryMovements);
+      setEmployees(hashedEmployees); setSales(seed.sales); setInventoryMovements(seed.inventoryMovements);
       setExpenses(seed.expenses); setPurchases(seed.purchases);
       setSettings(s => ({ ...s, paymentMethods: seed.paymentMethods }));
+      setRoles(seed.roles); setDepartments(seed.departments); setBranches(seed.branches);
+      setAuditLogs(seed.auditLogs); setFailedLogins(seed.failedLogins);
+      setCurrentEmployeeId(hashedEmployees[0].id);
     } else {
+      const ownerPinHash = await hashPin('0000');
+      const ownerId = uid('emp');
+      const dept = DEPARTMENTS_SEED.map(d => ({ ...d }));
+      const branch = BRANCHES_SEED.map(b => ({ ...b }));
       setCustomers([{ id: uid('cust'), name: 'Walk-in Customer', phone: '', email: '', totalSpent: 0, balance: 0, joined: new Date().toISOString(), isWalkIn: true }]);
-      setEmployees([{ id: uid('emp'), name: 'You (Owner)', role: 'owner', email: '', status: 'active', joined: new Date().toISOString() }]);
+      setEmployees([{ id: ownerId, name: 'You (Owner)', roleId: 'owner', employeeCode: 'EMP-001', email: '', username: 'owner', phone: '', departmentId: dept[3]?.id || dept[0]?.id, branchIds: 'all', status: 'active', joined: new Date().toISOString(), lastLogin: new Date().toISOString(), pinHash: ownerPinHash, additionalPermissions: [], restrictedPermissions: [] }]);
+      setRoles(seedRoles()); setDepartments(dept); setBranches(branch);
+      setCurrentEmployeeId(ownerId);
     }
     setOnboarded(true);
   };
@@ -1939,6 +2971,19 @@ function App() {
         return { ...p, stock: next };
       }));
       if (sale.customerId) setCustomers(cs => cs.map(c => c.id === sale.customerId ? { ...c, totalSpent: c.totalSpent + sale.total } : c));
+    },
+    refundSale: (saleId) => {
+      setSales(ss => ss.map(s => s.id === saleId ? { ...s, status: 'refunded' } : s));
+      const sale = sales.find(s => s.id === saleId);
+      if (!sale) return;
+      setProducts(prods => prods.map(p => {
+        const item = sale.items.find(i => i.productId === p.id);
+        if (!item) return p;
+        const prev = p.stock; const next = p.stock + item.qty;
+        setInventoryMovements(m => [{ id: uid('mov'), date: new Date().toISOString(), productId: p.id, productName: p.name, type: 'return', qtyChange: item.qty, prevQty: prev, newQty: next, reason: 'Refund for sale ' + sale.id.slice(-6), ref: sale.id, user: 'System' }, ...m]);
+        return { ...p, stock: next };
+      }));
+      if (sale.customerId) setCustomers(cs => cs.map(c => c.id === sale.customerId ? { ...c, totalSpent: Math.max(0, c.totalSpent - sale.total) } : c));
     },
     addProduct: (p) => setProducts(ps => [...ps, { ...p, id: uid('prod') }]),
     updateProduct: (p) => setProducts(ps => ps.map(x => x.id === p.id ? p : x)),
@@ -1969,8 +3014,42 @@ function App() {
     addCustomer: (c) => setCustomers(cs => [...cs, { ...c, id: uid('cust') }]),
     updateCustomer: (c) => setCustomers(cs => cs.map(x => x.id === c.id ? c : x)),
     deleteCustomer: (id) => setCustomers(cs => cs.filter(x => x.id !== id)),
-    addEmployee: (e) => setEmployees(es => [...es, { ...e, id: uid('emp') }]),
-    updateEmployee: (e) => setEmployees(es => es.map(x => x.id === e.id ? e : x)),
+    addEmployee: async (f) => {
+      const { pin, ...rest } = f;
+      const pinHash = pin ? await hashPin(pin) : null;
+      setEmployees(es => [...es, { ...rest, id: uid('emp'), pinHash, joined: new Date().toISOString(), lastLogin: null }]);
+    },
+    updateEmployee: async (f) => {
+      if (f.pin) {
+        const { pin, ...rest } = f;
+        const pinHash = await hashPin(pin);
+        setEmployees(es => es.map(x => x.id === f.id ? { ...rest, pinHash } : x));
+      } else {
+        setEmployees(es => es.map(x => x.id === f.id ? { ...x, ...f } : x));
+      }
+    },
+    setEmployeeStatus: (id, status) => setEmployees(es => es.map(e => e.id === id ? { ...e, status } : e)),
+    resetEmployeePin: async (id, newPin) => {
+      const pinHash = await hashPin(newPin);
+      setEmployees(es => es.map(e => e.id === id ? { ...e, pinHash } : e));
+    },
+    deleteEmployee: (id) => setEmployees(es => es.filter(e => e.id !== id)),
+    addRole: (f) => setRoles(rs => [...rs, { id: uid('role'), name: f.name, description: f.description, permissions: f.permissions, isSystem: false, isOwner: false, active: true }]),
+    updateRole: (r) => setRoles(rs => rs.map(x => x.id === r.id ? r : x)),
+    duplicateRole: (id) => setRoles(rs => {
+      const src = rs.find(r => r.id === id);
+      if (!src) return rs;
+      return [...rs, { ...src, id: uid('role'), name: src.name + ' (Copy)', isSystem: false, isOwner: false }];
+    }),
+    toggleRoleActive: (id) => setRoles(rs => rs.map(r => r.id === id ? { ...r, active: !r.active } : r)),
+    toggleRolePermission: (roleId, permId) => setRoles(rs => rs.map(r => {
+      if (r.id !== roleId || r.isOwner) return r;
+      return { ...r, permissions: r.permissions.includes(permId) ? r.permissions.filter(p => p !== permId) : [...r.permissions, permId] };
+    })),
+    addDepartment: (f) => setDepartments(ds => [...ds, { ...f, id: uid('dept') }]),
+    updateDepartment: (d) => setDepartments(ds => ds.map(x => x.id === d.id ? d : x)),
+    addBranch: (name) => setBranches(bs => [...bs, { id: uid('branch'), name }]),
+    deleteBranch: (id) => setBranches(bs => bs.filter(b => b.id !== id)),
     addExpense: (e) => setExpenses(es => [{ ...e, id: uid('exp') }, ...es]),
     updateBusiness: (b) => setBusiness(b),
     addPaymentMethod: (m) => setSettings(s => ({ ...s, paymentMethods: [...s.paymentMethods, m] })),
@@ -1979,10 +3058,32 @@ function App() {
     setReceiptTemplate: (t) => setSettings(s => ({ ...s, receiptTemplate: t })),
   };
 
+  const requestApproval = useCallback((permissionId, description, targetLabel) => {
+    return new Promise(resolve => {
+      setApproval({ permissionId, description, targetLabel, requesterId: currentEmployeeId, resolve });
+    });
+  }, [currentEmployeeId]);
+
+  const handleApprove = (approverEmployee) => {
+    logActivity(approverEmployee.name, 'Approved: ' + permLabel(approval.permissionId), 'admin', approval.targetLabel, 'approved',
+      'Requested by ' + (employees.find(e => e.id === approval.requesterId)?.name || 'unknown'));
+    approval.resolve(true);
+    setApproval(null);
+  };
+  const handleCancelApproval = () => {
+    if (approval) approval.resolve(false);
+    setApproval(null);
+  };
+  const handleFailedApproval = () => {
+    const requester = employees.find(e => e.id === approval?.requesterId);
+    setFailedLogins(f => [{ id: uid('fl'), date: new Date().toISOString(), username: requester?.username || requester?.name || 'unknown', reason: 'Incorrect manager PIN for ' + permLabel(approval.permissionId) }, ...f]);
+  };
+
   if (!onboarded) return <Onboarding onComplete={handleOnboardComplete} />;
 
-  const state = { business, products, suppliers, customers, employees, sales, purchases, expenses, inventoryMovements, settings };
-  const ctx = { toast, setPage, dark, setDark };
+  const currentEmployee = employees.find(e => e.id === currentEmployeeId) || employees[0];
+  const state = { business, products, suppliers, customers, employees, sales, purchases, expenses, inventoryMovements, settings, roles, departments, branches, auditLogs, failedLogins };
+  const ctx = { toast, setPage, dark, setDark, currentEmployee, requestApproval, logActivity };
 
   const lowStock = products.filter(p => p.stock <= p.reorderLevel);
   const pendingPO = purchases.filter(p => p.status === 'pending');
@@ -1998,26 +3099,34 @@ function App() {
     products: settings.enabledModules.inventory ? <Products {...pageProps} /> : <ModuleDisabled name="Products & Inventory" />,
     purchases: settings.enabledModules.purchasing ? <Purchases {...pageProps} /> : <ModuleDisabled name="Purchases & Suppliers" />,
     customers: settings.enabledModules.customers ? <Customers {...pageProps} /> : <ModuleDisabled name="Customers" />,
-    employees: settings.enabledModules.employees ? <Employees {...pageProps} /> : <ModuleDisabled name="Employees" />,
     expenses: settings.enabledModules.expenses ? <Expenses {...pageProps} /> : <ModuleDisabled name="Expenses" />,
     reports: settings.enabledModules.reports ? <Reports {...pageProps} /> : <ModuleDisabled name="Reports" />,
+    employees: <Employees {...pageProps} />,
+    roles: <RolesPermissions {...pageProps} />,
+    departments: <Departments {...pageProps} />,
+    branches: <Branches {...pageProps} />,
+    activity: <ActivityLog {...pageProps} />,
+    security: <SecurityCenter {...pageProps} />,
     settings: <Settings {...pageProps} />,
   };
 
-  const activeNav = NAV_ITEMS.find(n => n.key === page);
-  const allowedPage = activeNav && activeNav.roles.includes(role) ? page : 'dashboard';
+  const allNav = [...NAV_ITEMS, ...ADMIN_NAV_ITEMS];
+  const activeNav = allNav.find(n => n.key === page);
+  const allowedPage = activeNav && (!activeNav.perm || can(currentEmployee, roles, activeNav.perm)) ? page : 'dashboard';
 
   return (
     <div className="min-h-screen flex bg-paper text-ink">
-      <Sidebar page={allowedPage} setPage={setPage} business={business} enabledModules={settings.enabledModules} role={role} collapsed={collapsed} setCollapsed={setCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <Sidebar page={allowedPage} setPage={setPage} business={business} enabledModules={settings.enabledModules} currentEmployee={currentEmployee} roles={roles} collapsed={collapsed} setCollapsed={setCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar business={business} role={role} setRole={setRole} dark={dark} setDark={setDark} setMobileOpen={setMobileOpen} notifications={notifications} page={allowedPage} />
-        <RoleBanner role={role} />
+        <Topbar business={business} currentEmployee={currentEmployee} employees={employees} setCurrentEmployeeId={setCurrentEmployeeId} roles={roles} dark={dark} setDark={setDark} setMobileOpen={setMobileOpen} notifications={notifications} page={allowedPage} allNav={allNav} />
+        <EmployeeBanner employee={currentEmployee} roles={roles} />
         <main className="flex-1 p-4 md:p-6 rise-in">
           {pages[allowedPage]}
         </main>
       </div>
       <Toast toasts={toasts} />
+      <ManagerApprovalModal approval={approval} employees={employees} roles={roles}
+        onApprove={handleApprove} onCancel={handleCancelApproval} onFailedAttempt={handleFailedApproval} />
     </div>
   );
 }
