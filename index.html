@@ -167,6 +167,14 @@ const IconShield = (p) => <Icon {...p} path={<><path d="M12 3l7 3v6c0 4.5-3 7.5-
 const IconBranch = (p) => <Icon {...p} path={<><circle cx="6" cy="5" r="2.2"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="12" r="2.2"/><path d="M6 7.2V16.8"/><path d="M8.1 6.2C11 8 14.5 9.5 15.9 10.4"/></>} />;
 const IconLock = (p) => <Icon {...p} path={<><rect x="4.5" y="10.5" width="15" height="10" rx="1.8"/><path d="M8 10.5V7a4 4 0 018 0v3.5"/><circle cx="12" cy="15" r="1.3" fill="currentColor"/></>} />;
 const IconKey = (p) => <Icon {...p} path={<><circle cx="8" cy="14" r="3.5"/><path d="M10.5 11.5L20 2"/><path d="M15.5 6.5l2.5 2.5"/><path d="M18 4l2 2"/></>} />;
+const IconRegister = (p) => <Icon {...p} path={<><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M7 20h10"/><path d="M9 16v4"/><path d="M15 16v4"/><path d="M7 8h4"/><path d="M7 11.5h2"/></>} />;
+const IconGift = (p) => <Icon {...p} path={<><rect x="3.5" y="9" width="17" height="4" rx="0.8"/><rect x="4.5" y="13" width="15" height="8" rx="1"/><path d="M12 9v12"/><path d="M12 9c-1-3-3.5-5-5-3.5S8 9 12 9z"/><path d="M12 9c1-3 3.5-5 5-3.5S16 9 12 9z"/></>} />;
+const IconUtensils = (p) => <Icon {...p} path={<><path d="M6 2v8"/><path d="M4 2v5a2 2 0 004 0V2"/><path d="M6 10v12"/><path d="M17 2c-1.7 0-3 2-3 5s1.3 5 3 5v10"/></>} />;
+const IconWifi = (p) => <Icon {...p} path={<><path d="M2 8.5a15.5 15.5 0 0120 0"/><path d="M5.5 12.5a10.5 10.5 0 0113 0"/><path d="M9 16.5a5.5 5.5 0 016 0"/><circle cx="12" cy="20" r="0.2" fill="currentColor"/></>} />;
+const IconWifiOff = (p) => <Icon {...p} path={<><path d="M2 3l19 19"/><path d="M9 16.5a5.5 5.5 0 016 0"/><path d="M5.5 12.5a10.5 10.5 0 016.2-3"/><path d="M15.5 9.7a10.5 10.5 0 014.5 2.8"/><path d="M2 8.5c1.3-1.2 2.7-2.1 4.3-2.8"/><circle cx="12" cy="20" r="0.2" fill="currentColor"/></>} />;
+const IconCommand = (p) => <Icon {...p} path={<><path d="M8 4.5A2 2 0 106 6.5V8H4.5a2 2 0 102 2H8v8a2 2 0 102-2v-1.5h4V16a2 2 0 102-2h1.5a2 2 0 10-2-2H16V8h1.5a2 2 0 10-2-2V4.5a2 2 0 10-2 2V8H8V4.5z"/></>} />;
+const IconTable = (p) => <Icon {...p} path={<><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M6 8v12"/><path d="M18 8v12"/><path d="M3 20h18"/></>} />;
+const IconChefHat = (p) => <Icon {...p} path={<><path d="M7 21h10v-6H7z"/><path d="M7.5 15C5 13.8 4 11.7 5 9.7c.8-1.6 2.6-2.3 4-1.8C9.4 6 11 4.5 13 4.5s3.6 1.5 4 3.4c1.4-.5 3.2.2 4 1.8 1 2 0 4.1-2.5 5.3"/></>} />;
 
 /* ============================== SHARED UI ============================== */
 
@@ -443,6 +451,23 @@ const PERMISSION_CATALOG = [
     { id: 'admin.audit.view', label: 'View audit logs' },
     { id: 'admin.security.manage', label: 'Manage security settings' },
   ]},
+  { category: 'register', categoryLabel: 'Cash Register', permissions: [
+    { id: 'register.view', label: 'View cash register' },
+    { id: 'register.open', label: 'Open register session' },
+    { id: 'register.close', label: 'Close register session' },
+    { id: 'register.cash_movement', label: 'Record cash in / cash out' },
+  ]},
+  { category: 'loyalty', categoryLabel: 'Loyalty', permissions: [
+    { id: 'loyalty.view', label: 'View loyalty program' },
+    { id: 'loyalty.manage', label: 'Manage loyalty settings & coupons' },
+    { id: 'loyalty.redeem', label: 'Redeem points / coupons at checkout' },
+  ]},
+  { category: 'restaurant', categoryLabel: 'Restaurant', permissions: [
+    { id: 'restaurant.view', label: 'View tables & kitchen display' },
+    { id: 'restaurant.tables.manage', label: 'Manage tables & floor plan' },
+    { id: 'restaurant.kitchen.update', label: 'Update kitchen order status' },
+    { id: 'restaurant.recipes.manage', label: 'Manage recipes' },
+  ]},
 ];
 const ALL_PERMISSION_IDS = PERMISSION_CATALOG.flatMap(c => c.permissions.map(p => p.id));
 function permLabel(id) {
@@ -456,16 +481,18 @@ const SYSTEM_ROLE_DEFAULTS = {
     permissions: ALL_PERMISSION_IDS.filter(id => !['admin.security.manage','settings.tax.edit'].includes(id)) },
   supervisor: { name: 'Supervisor', description: 'Manages an assigned operational area with day-to-day approval rights.',
     permissions: ['pos.view','pos.sale.create','pos.order.edit','pos.order.cancel','pos.order.hold','pos.discount.apply','pos.refund','pos.receipt.reprint','pos.history.view',
-      'products.view','inventory.view','inventory.adjust','customers.view','customers.create','customers.edit','customers.history.view','reports.sales.view'] },
+      'products.view','inventory.view','inventory.adjust','customers.view','customers.create','customers.edit','customers.history.view','reports.sales.view',
+      'register.view','register.open','register.close','register.cash_movement','loyalty.view','loyalty.redeem','restaurant.view','restaurant.kitchen.update'] },
   cashier: { name: 'Cashier', description: 'Front-of-house sales: POS, customers, and receipts.',
-    permissions: ['pos.view','pos.sale.create','pos.order.hold','pos.receipt.reprint','pos.history.view','products.view','customers.view','customers.create','customers.history.view'] },
+    permissions: ['pos.view','pos.sale.create','pos.order.hold','pos.receipt.reprint','pos.history.view','products.view','customers.view','customers.create','customers.history.view',
+      'register.view','register.open','register.close','loyalty.view','loyalty.redeem','restaurant.view'] },
   inventory_manager: { name: 'Inventory Manager', description: 'Owns products, stock, suppliers, and purchasing.',
     permissions: ['products.view','products.create','products.edit','products.import_export','inventory.view','inventory.adjust','inventory.purchase.create','inventory.purchase.receive',
-      'inventory.valuation.view','inventory.history.view','suppliers.view','suppliers.create','suppliers.edit','suppliers.balance.view','reports.inventory.view'] },
+      'inventory.valuation.view','inventory.history.view','suppliers.view','suppliers.create','suppliers.edit','suppliers.balance.view','reports.inventory.view','restaurant.recipes.manage'] },
   accountant: { name: 'Accountant / Finance', description: 'Expenses, payments, and financial reporting.',
-    permissions: ['expenses.view','expenses.create','expenses.edit','expenses.approve','reports.financial.view','reports.sales.view','reports.export','suppliers.balance.view'] },
+    permissions: ['expenses.view','expenses.create','expenses.edit','expenses.approve','reports.financial.view','reports.sales.view','reports.export','suppliers.balance.view','register.view','loyalty.view'] },
   staff: { name: 'Staff', description: 'Basic operational access with no sensitive actions.',
-    permissions: ['pos.view','products.view','customers.view'] },
+    permissions: ['pos.view','products.view','customers.view','restaurant.view'] },
 };
 
 function seedRoles() {
@@ -528,22 +555,38 @@ const ROLES = [
 /* ============================== SEED DATA ============================== */
 
 const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', icon: IconDashboard, module: null, perm: null },
-  { key: 'pos', label: 'Point of Sale', icon: IconPOS, module: 'pos', perm: 'pos.view' },
-  { key: 'products', label: 'Products & Inventory', icon: IconBox, module: 'inventory', perm: 'products.view' },
-  { key: 'purchases', label: 'Purchases & Suppliers', icon: IconTruck, module: 'purchasing', perm: 'inventory.purchase.create' },
-  { key: 'customers', label: 'Customers', icon: IconUsers, module: 'customers', perm: 'customers.view' },
-  { key: 'expenses', label: 'Expenses', icon: IconWallet, module: 'expenses', perm: 'expenses.view' },
-  { key: 'reports', label: 'Reports', icon: IconChart, module: 'reports', perm: 'reports.sales.view' },
+  { key: 'dashboard', label: 'Dashboard', icon: IconDashboard, module: null, perm: null, section: null },
+  { key: 'pos', label: 'Point of Sale', icon: IconPOS, module: 'pos', perm: 'pos.view', section: null },
+  { key: 'products', label: 'Products & Inventory', icon: IconBox, module: 'inventory', perm: 'products.view', section: null },
+  { key: 'purchases', label: 'Purchases & Suppliers', icon: IconTruck, module: 'purchasing', perm: 'inventory.purchase.create', section: null },
+  { key: 'customers', label: 'Customers', icon: IconUsers, module: 'customers', perm: 'customers.view', section: null },
+  { key: 'expenses', label: 'Expenses', icon: IconWallet, module: 'expenses', perm: 'expenses.view', section: null },
+  { key: 'reports', label: 'Reports', icon: IconChart, module: 'reports', perm: 'reports.sales.view', section: null },
+];
+const OPERATIONS_NAV_ITEMS = [
+  { key: 'register', label: 'Cash Register', icon: IconRegister, module: 'cash_register', perm: 'register.view', section: 'Operations' },
+  { key: 'loyalty', label: 'Loyalty', icon: IconGift, module: 'loyalty', perm: 'loyalty.view', section: 'Operations' },
+  { key: 'restaurant', label: 'Restaurant', icon: IconUtensils, module: 'restaurant', perm: 'restaurant.view', section: 'Operations' },
 ];
 const ADMIN_NAV_ITEMS = [
-  { key: 'employees', label: 'Employees', icon: IconUser, module: null, perm: 'employees.view' },
-  { key: 'roles', label: 'Roles & Permissions', icon: IconShield, module: null, perm: 'admin.roles.manage' },
-  { key: 'departments', label: 'Departments', icon: IconLayers, module: null, perm: 'admin.departments.manage' },
-  { key: 'branches', label: 'Branches', icon: IconBranch, module: null, perm: 'admin.branches.manage' },
-  { key: 'activity', label: 'Activity Log', icon: IconClock, module: null, perm: 'admin.audit.view' },
-  { key: 'security', label: 'Security', icon: IconLock, module: null, perm: 'admin.security.manage' },
-  { key: 'settings', label: 'Settings', icon: IconSettings, module: null, perm: 'settings.view' },
+  { key: 'employees', label: 'Employees', icon: IconUser, module: null, perm: 'employees.view', section: 'Admin' },
+  { key: 'roles', label: 'Roles & Permissions', icon: IconShield, module: null, perm: 'admin.roles.manage', section: 'Admin' },
+  { key: 'departments', label: 'Departments', icon: IconLayers, module: null, perm: 'admin.departments.manage', section: 'Admin' },
+  { key: 'branches', label: 'Branches', icon: IconBranch, module: null, perm: 'admin.branches.manage', section: 'Admin' },
+  { key: 'activity', label: 'Activity Log', icon: IconClock, module: null, perm: 'admin.audit.view', section: 'Admin' },
+  { key: 'security', label: 'Security', icon: IconLock, module: null, perm: 'admin.security.manage', section: 'Admin' },
+  { key: 'settings', label: 'Settings', icon: IconSettings, module: null, perm: 'settings.view', section: 'Admin' },
+];
+const MODULE_DEFS = [
+  { key: 'pos', label: 'Point of Sale', builtIn: true },
+  { key: 'inventory', label: 'Products & Inventory', builtIn: true },
+  { key: 'purchasing', label: 'Purchases & Suppliers', builtIn: true },
+  { key: 'customers', label: 'Customers', builtIn: true },
+  { key: 'expenses', label: 'Expenses', builtIn: true },
+  { key: 'reports', label: 'Reports', builtIn: true },
+  { key: 'cash_register', label: 'Cash Register', builtIn: true },
+  { key: 'loyalty', label: 'Loyalty', builtIn: true },
+  { key: 'restaurant', label: 'Restaurant (tables, kitchen, recipes)', builtIn: true },
 ];
 
 const BUSINESS_TYPES = [
@@ -588,7 +631,25 @@ function seedDemoData(currency) {
     reorderLevel: category === 'Merchandise' ? 8 : 15,
     supplierId: null,
     status: 'active',
+    expiryDate: category === 'Pastries' ? isoDaysAgo(-2) : (category === 'Beverages' && unit === 'bag' ? isoDaysAgo(-180) : null),
+    variants: [],
+    isComposite: false,
+    components: [],
   }));
+  // Give the "Cappuccino" a couple of size variants and make one demo item a recipe, to show both mechanics.
+  const cappuccino = products.find(p => p.name === 'Cappuccino');
+  if (cappuccino) {
+    cappuccino.variants = [
+      { id: uid('var'), name: 'Regular', priceDelta: 0, stock: 40 },
+      { id: uid('var'), name: 'Large', priceDelta: 1.0, stock: 25 },
+    ];
+  }
+  const filterCoffee = products.find(p => p.name === 'Filter Coffee');
+  const beansBag = products.find(p => p.name === 'House Blend Beans 250g');
+  if (filterCoffee && beansBag) {
+    filterCoffee.isComposite = true;
+    filterCoffee.components = [{ productId: beansBag.id, qty: 0.02 }];
+  }
   const suppliers = [
     { id: uid('sup'), name: 'Highland Roasters Co.', contact: 'Diana Mwangi', phone: '+254 700 111 222', email: 'orders@highlandroasters.co', balance: 240 },
     { id: uid('sup'), name: 'Sunrise Bakery Supplies', contact: 'Tom Achieng', phone: '+254 700 333 444', email: 'sales@sunrisebakery.co', balance: 0 },
@@ -597,12 +658,12 @@ function seedDemoData(currency) {
   products.forEach((p, i) => { p.supplierId = suppliers[i % suppliers.length].id; });
 
   const customers = [
-    { id: uid('cust'), name: 'Amina Yusuf', phone: '+254 701 222 333', email: 'amina.y@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(80) },
-    { id: uid('cust'), name: 'Brian Otieno', phone: '+254 702 333 444', email: 'brian.o@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(65) },
-    { id: uid('cust'), name: 'Cynthia Wafula', phone: '+254 703 444 555', email: 'cynthia.w@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(40) },
-    { id: uid('cust'), name: 'David Kimani', phone: '+254 704 555 666', email: 'david.k@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(20) },
-    { id: uid('cust'), name: 'Faith Nekesa', phone: '+254 705 666 777', email: 'faith.n@mail.com', totalSpent: 0, balance: 0, joined: isoDaysAgo(10) },
-    { id: uid('cust'), name: 'Walk-in Customer', phone: '', email: '', totalSpent: 0, balance: 0, joined: isoDaysAgo(365), isWalkIn: true },
+    { id: uid('cust'), name: 'Amina Yusuf', phone: '+254 701 222 333', email: 'amina.y@mail.com', totalSpent: 0, balance: 0, loyaltyPoints: 0, joined: isoDaysAgo(80) },
+    { id: uid('cust'), name: 'Brian Otieno', phone: '+254 702 333 444', email: 'brian.o@mail.com', totalSpent: 0, balance: 0, loyaltyPoints: 0, joined: isoDaysAgo(65) },
+    { id: uid('cust'), name: 'Cynthia Wafula', phone: '+254 703 444 555', email: 'cynthia.w@mail.com', totalSpent: 0, balance: 0, loyaltyPoints: 0, joined: isoDaysAgo(40) },
+    { id: uid('cust'), name: 'David Kimani', phone: '+254 704 555 666', email: 'david.k@mail.com', totalSpent: 0, balance: 0, loyaltyPoints: 0, joined: isoDaysAgo(20) },
+    { id: uid('cust'), name: 'Faith Nekesa', phone: '+254 705 666 777', email: 'faith.n@mail.com', totalSpent: 0, balance: 0, loyaltyPoints: 0, joined: isoDaysAgo(10) },
+    { id: uid('cust'), name: 'Walk-in Customer', phone: '', email: '', totalSpent: 0, balance: 0, loyaltyPoints: 0, joined: isoDaysAgo(365), isWalkIn: true },
   ];
 
   const employees = [
@@ -690,7 +751,28 @@ function seedDemoData(currency) {
     { id: uid('fl'), date: isoDaysAgo(4), username: 'samuel.k', reason: 'Incorrect PIN (3 attempts)' },
   ];
 
-  return { products, suppliers, customers, employees, sales, inventoryMovements, expenses, purchases, paymentMethods, roles, departments, branches, auditLogs, failedLogins };
+  const loyaltySettings = { pointsPerCurrencyUnit: 1, currencyUnitsPerPoint: 10, redemptionRate: 100, tiers: [
+    { name: 'Bronze', threshold: 0 }, { name: 'Silver', threshold: 200 }, { name: 'Gold', threshold: 600 },
+  ]};
+  const coupons = [
+    { id: uid('cpn'), code: 'WELCOME10', type: 'percent', value: 10, active: true, usageLimit: null, usedCount: 3 },
+    { id: uid('cpn'), code: 'SAVE2', type: 'fixed', value: 2, active: true, usageLimit: 50, usedCount: 12 },
+  ];
+  const tables = [
+    { id: uid('tbl'), name: 'T1', seats: 2, status: 'open', waiterId: null },
+    { id: uid('tbl'), name: 'T2', seats: 4, status: 'occupied', waiterId: employees[2]?.id || null },
+    { id: uid('tbl'), name: 'T3', seats: 4, status: 'open', waiterId: null },
+    { id: uid('tbl'), name: 'T4', seats: 6, status: 'needs_cleaning', waiterId: null },
+    { id: uid('tbl'), name: 'Bar 1', seats: 1, status: 'open', waiterId: null },
+    { id: uid('tbl'), name: 'Bar 2', seats: 1, status: 'occupied', waiterId: employees[3]?.id || null },
+  ];
+  const registerSessions = [
+    { id: uid('reg'), branchId: 'branch_main', openedAt: isoDaysAgo(1), closedAt: isoDaysAgo(1), openedBy: employees[2]?.name, closedBy: employees[2]?.name,
+      openingBalance: 50, cashIn: [], cashOut: [{ amount: 20, note: 'Petty cash for cleaning supplies', date: isoDaysAgo(1) }],
+      expectedClosingBalance: 187.5, actualClosingBalance: 185, variance: -2.5, status: 'closed' },
+  ];
+
+  return { products, suppliers, customers, employees, sales, inventoryMovements, expenses, purchases, paymentMethods, roles, departments, branches, auditLogs, failedLogins, loyaltySettings, coupons, tables, registerSessions };
 }
 
 /** Hash every seeded employee's demo PIN (never keep plaintext around, even in a demo). */
@@ -862,6 +944,7 @@ function Onboarding({ onComplete }) {
 function Sidebar({ page, setPage, business, enabledModules, currentEmployee, roles, collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
   const visible = items => items.filter(item => (!item.module || enabledModules[item.module]) && (!item.perm || can(currentEmployee, roles, item.perm)));
   const mainItems = visible(NAV_ITEMS);
+  const opsItems = visible(OPERATIONS_NAV_ITEMS);
   const adminItems = visible(ADMIN_NAV_ITEMS);
   const NavButton = (item) => {
     const Ico = item.icon;
@@ -888,6 +971,13 @@ function Sidebar({ page, setPage, business, enabledModules, currentEmployee, rol
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-0.5">
           {mainItems.map(NavButton)}
+          {opsItems.length > 0 && (
+            <>
+              {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-wider text-paper/40 px-2.5 pt-4 pb-1.5">Operations</p>}
+              {collapsed && <div className="h-px bg-white/10 mx-2 my-3" />}
+              {opsItems.map(NavButton)}
+            </>
+          )}
           {adminItems.length > 0 && (
             <>
               {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-wider text-paper/40 px-2.5 pt-4 pb-1.5">Admin</p>}
@@ -915,20 +1005,36 @@ function EmployeeBanner({ employee, roles }) {
   );
 }
 
-function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, roles, dark, setDark, setMobileOpen, notifications, page, allNav }) {
+function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, roles, dark, setDark, setMobileOpen, notifications, page, allNav, onOpenPalette, online, branches, activeBranchId, setActiveBranchId }) {
   const [showNotif, setShowNotif] = useState(false);
   const [showEmp, setShowEmp] = useState(false);
-  const pageLabel = (allNav.find(n => n.key === page) || {}).label || '';
+  const navItem = allNav.find(n => n.key === page) || {};
+  const pageLabel = navItem.label || '';
   const activeEmployees = employees.filter(e => e.status === 'active');
+  const employeeBranches = currentEmployee?.branchIds === 'all' ? branches : branches.filter(b => (currentEmployee?.branchIds || []).includes(b.id));
+  const showBranchSelector = branches.length > 1 && employeeBranches.length > 1;
   return (
     <div className="sticky top-0 z-20 bg-paper/90 backdrop-blur border-b border-line">
       <div className="h-16 flex items-center gap-3 px-4 md:px-6">
         <button className="md:hidden p-1.5 -ml-1" onClick={() => setMobileOpen(true)}><IconMenu size={20} /></button>
-        <h1 className="font-display text-lg font-medium hidden sm:block">{pageLabel}</h1>
+        <div className="hidden sm:block">
+          {navItem.section && <p className="text-xs text-ink-muted leading-none mb-0.5">{navItem.section}</p>}
+          <h1 className="font-display text-lg font-medium leading-none">{pageLabel}</h1>
+        </div>
+        {showBranchSelector && (
+          <select value={activeBranchId} onChange={e => setActiveBranchId(e.target.value)} className="ml-2 text-xs border border-line rounded-md px-2 py-1.5 bg-white">
+            {employeeBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        )}
         <div className="flex-1" />
-        <div className="hidden md:flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 w-64 text-ink-muted">
+        <button onClick={onOpenPalette} className="hidden md:flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 w-64 text-ink-muted hover:border-ink/30">
           <IconSearch size={15} />
-          <input placeholder="Search products, customers, orders…" className="bg-transparent outline-none text-sm w-full text-ink placeholder:text-ink-muted/70" />
+          <span className="text-sm flex-1 text-left">Search anything…</span>
+          <span className="text-[10px] border border-line rounded px-1 py-0.5 text-ink-muted/70">⌘K</span>
+        </button>
+        <div title={online ? 'Online' : 'Offline — sales will queue and sync automatically'} className={'hidden sm:flex items-center gap-1 text-xs px-2 py-1 rounded-full ' + (online ? 'text-moss bg-moss-light' : 'text-clay bg-clay-light')}>
+          {online ? <IconWifi size={13}/> : <IconWifiOff size={13}/>}
+          {online ? 'Online' : 'Offline'}
         </div>
         <button onClick={() => setDark(d => !d)} className="p-2 rounded-md hover:bg-paper-dim text-ink-muted" title="Toggle theme">
           {dark ? <IconSun size={17} /> : <IconMoon size={17} />}
@@ -977,10 +1083,96 @@ function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, ro
   );
 }
 
+/* ============================== COMMAND PALETTE ============================== */
+
+function CommandPalette({ open, onClose, allNav, state, setPage }) {
+  const [q, setQ] = useState('');
+  useEffect(() => { if (open) setQ(''); }, [open]);
+  if (!open) return null;
+  const query = q.toLowerCase();
+
+  const navResults = query ? allNav.filter(n => n.label.toLowerCase().includes(query)) : allNav.slice(0, 6);
+  const productResults = query ? state.products.filter(p => p.name.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query)).slice(0, 5) : [];
+  const customerResults = query ? state.customers.filter(c => c.name.toLowerCase().includes(query)).slice(0, 5) : [];
+  const employeeResults = query ? state.employees.filter(e => e.name.toLowerCase().includes(query)).slice(0, 5) : [];
+  const saleResults = query ? state.sales.filter(s => s.id.slice(-6).toLowerCase().includes(query) || s.customerName.toLowerCase().includes(query)).slice(0, 5) : [];
+
+  const goPage = (key) => { setPage(key); onClose(); };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-4">
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className="relative bg-paper-raised rounded-xl border border-line shadow-2xl w-full max-w-lg max-h-[70vh] flex flex-col rise-in">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-line">
+          <IconSearch size={16} className="text-ink-muted" />
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search pages, products, customers, employees, sales…"
+            className="flex-1 bg-transparent outline-none text-sm" />
+          <button onClick={onClose} className="text-ink-muted hover:text-ink"><IconX size={16}/></button>
+        </div>
+        <div className="overflow-y-auto py-2">
+          {navResults.length > 0 && (
+            <div className="px-2 mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted px-2 py-1">Go to</p>
+              {navResults.map(n => {
+                const Ico = n.icon;
+                return (
+                  <button key={n.key} onClick={() => goPage(n.key)} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm hover:bg-paper-dim text-left">
+                    <Ico size={15} className="text-ink-muted" /> {n.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {productResults.length > 0 && (
+            <div className="px-2 mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted px-2 py-1">Products</p>
+              {productResults.map(p => (
+                <button key={p.id} onClick={() => goPage('products')} className="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-sm hover:bg-paper-dim text-left">
+                  <span>{p.name}</span><span className="text-xs text-ink-muted">{p.sku}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {customerResults.length > 0 && (
+            <div className="px-2 mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted px-2 py-1">Customers</p>
+              {customerResults.map(c => (
+                <button key={c.id} onClick={() => goPage('customers')} className="w-full px-2.5 py-2 rounded-md text-sm hover:bg-paper-dim text-left">{c.name}</button>
+              ))}
+            </div>
+          )}
+          {employeeResults.length > 0 && (
+            <div className="px-2 mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted px-2 py-1">Employees</p>
+              {employeeResults.map(e => (
+                <button key={e.id} onClick={() => goPage('employees')} className="w-full px-2.5 py-2 rounded-md text-sm hover:bg-paper-dim text-left">{e.name}</button>
+              ))}
+            </div>
+          )}
+          {saleResults.length > 0 && (
+            <div className="px-2 mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted px-2 py-1">Sales</p>
+              {saleResults.map(s => (
+                <button key={s.id} onClick={() => goPage('pos')} className="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-sm hover:bg-paper-dim text-left">
+                  <span>#{s.id.slice(-6).toUpperCase()} · {s.customerName}</span><span className="text-xs text-ink-muted">{fmtMoney(s.total, state.business.currency)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {query && !productResults.length && !customerResults.length && !employeeResults.length && !saleResults.length && !navResults.length && (
+            <p className="text-sm text-ink-muted text-center py-8">No matches for "{q}".</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ============================== DASHBOARD ============================== */
 
-function Dashboard({ state, ctx }) {
-  const { sales, products, expenses, purchases, business } = state;
+function Dashboard({ state, ctx, actions }) {
+  const { sales, products, expenses, purchases, business, dashboardPrefs } = state;
+  const [customizing, setCustomizing] = useState(false);
   const currency = business.currency;
   const today = dayKey(new Date().toISOString());
   const todaySales = sales.filter(s => dayKey(s.date) === today);
@@ -1000,7 +1192,7 @@ function Dashboard({ state, ctx }) {
   sales.forEach(s => s.items.forEach(it => { productSales[it.name] = (productSales[it.name] || 0) + it.qty; }));
   const topProducts = Object.entries(productSales).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, value]) => ({ label, value }));
 
-  const lowStock = products.filter(p => p.stock <= p.reorderLevel);
+  const lowStock = products.filter(p => !p.isComposite && p.stock <= p.reorderLevel);
   const grossProfit = sales.reduce((a, s) => a + s.items.reduce((b, it) => {
     const p = products.find(pp => pp.id === it.productId);
     return b + (p ? (it.price - p.cost) * it.qty : 0);
@@ -1009,15 +1201,19 @@ function Dashboard({ state, ctx }) {
   const pendingPO = purchases.filter(p => p.status === 'pending').length;
   const recent = sales.slice(0, 6);
 
-  return (
-    <div className="space-y-5">
+  const WIDGET_LABELS = { stats: 'Key stats', trendRow: 'Sales trend & top products', recentRow: 'Recent transactions & attention needed' };
+  const visibleOrder = dashboardPrefs.order.filter(k => !dashboardPrefs.hidden.includes(k));
+
+  const blocks = {
+    stats: (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Today's revenue" value={fmtMoney(todayRevenue, currency)} delta={Math.abs(revenueDelta) + '% vs yesterday'} deltaGood={revenueDelta >= 0} />
         <StatCard label="Today's orders" value={todaySales.length} sub={sales.length + ' all time'} />
         <StatCard label="Gross profit (all time)" value={fmtMoney(grossProfit, currency)} sub="Since launch" />
         <StatCard label="Low stock items" value={lowStock.length} sub={lowStock.length ? 'Needs attention' : 'All healthy'} />
       </div>
-
+    ),
+    trendRow: (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card title="Sales, last 14 days" className="lg:col-span-2">
           <BarChart data={last14} formatValue={v => fmtMoney(v, currency)} />
@@ -1026,7 +1222,8 @@ function Dashboard({ state, ctx }) {
           {topProducts.length ? <HBarList data={topProducts} /> : <p className="text-sm text-ink-muted">No sales yet.</p>}
         </Card>
       </div>
-
+    ),
+    recentRow: (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card title="Recent transactions" className="lg:col-span-2" padded={false}
           action={<Button size="sm" variant="ghost" onClick={() => ctx.setPage('reports')}>View all</Button>}>
@@ -1068,16 +1265,57 @@ function Dashboard({ state, ctx }) {
           </div>
         </Card>
       </div>
+    ),
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex justify-end">
+        <Button size="sm" variant="ghost" onClick={() => setCustomizing(c => !c)}>{customizing ? 'Done' : 'Customize dashboard'}</Button>
+      </div>
+      {customizing && (
+        <Card>
+          <p className="text-xs font-semibold text-ink-muted mb-2">Show, hide, and reorder dashboard sections</p>
+          <div className="space-y-1.5">
+            {dashboardPrefs.order.map((key, i) => (
+              <div key={key} className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-paper-dim">
+                <span className="text-sm">{WIDGET_LABELS[key]}</span>
+                <div className="flex items-center gap-1">
+                  <button disabled={i === 0} onClick={() => actions.moveDashboardWidget(key, -1)} className="p-1 rounded hover:bg-white disabled:opacity-30"><IconArrowUp size={14}/></button>
+                  <button disabled={i === dashboardPrefs.order.length - 1} onClick={() => actions.moveDashboardWidget(key, 1)} className="p-1 rounded hover:bg-white disabled:opacity-30"><IconArrowDown size={14}/></button>
+                  <button onClick={() => actions.toggleDashboardWidget(key)} className={'w-9 h-5 rounded-full transition-colors relative ml-2 ' + (!dashboardPrefs.hidden.includes(key) ? 'bg-ink' : 'bg-line')}>
+                    <span className={'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ' + (!dashboardPrefs.hidden.includes(key) ? 'translate-x-4' : 'translate-x-0.5')} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+      {visibleOrder.map(key => <div key={key}>{blocks[key]}</div>)}
     </div>
   );
 }
 
 /* ============================== POS ============================== */
 
+/** Effective sellable stock for a product: composites are capped by their scarcest ingredient; variants are summed. */
+function effectiveStock(product, allProducts) {
+  if (product.isComposite) {
+    if (!product.components || product.components.length === 0) return 0;
+    return Math.min(...product.components.map(c => {
+      const ing = allProducts.find(p => p.id === c.productId);
+      return ing ? Math.floor(ing.stock / c.qty) : 0;
+    }));
+  }
+  if (product.variants && product.variants.length > 0) return product.variants.reduce((a, v) => a + v.stock, 0);
+  return product.stock;
+}
+
 const CUSTOM_DISCOUNT_THRESHOLD = 20; // % — beyond this, pos.discount.custom (or manager approval) is required
 
 function POS({ state, actions, ctx }) {
-  const { products, customers, business, employees, settings, roles } = state;
+  const { products, customers, business, employees, settings, roles, loyaltySettings, coupons, tables } = state;
   const currentEmployee = ctx.currentEmployee;
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
@@ -1089,11 +1327,18 @@ function POS({ state, actions, ctx }) {
   const [receipt, setReceipt] = useState(null);
   const [note, setNote] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [variantPicker, setVariantPicker] = useState(null); // product with variants awaiting selection
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const [tableId, setTableId] = useState('');
 
   const canDiscount = can(currentEmployee, roles, 'pos.discount.apply');
   const canCustomDiscount = can(currentEmployee, roles, 'pos.discount.custom');
   const canRefund = can(currentEmployee, roles, 'pos.refund');
   const canViewHistory = can(currentEmployee, roles, 'pos.history.view');
+  const canRedeemLoyalty = settings.enabledModules.loyalty && can(currentEmployee, roles, 'loyalty.redeem');
+  const restaurantOn = settings.enabledModules.restaurant;
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
   const filtered = products.filter(p =>
@@ -1102,32 +1347,61 @@ function POS({ state, actions, ctx }) {
     (search === '' || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search))
   );
 
-  const addToCart = (p) => {
-    if (p.stock <= 0) { ctx.toast('That item is out of stock.', 'bad'); return; }
+  const addVariantToCart = (product, variant) => {
+    if (variant.stock <= 0) { ctx.toast('That variant is out of stock.', 'bad'); return; }
     setCart(c => {
-      const existing = c.find(i => i.productId === p.id);
+      const existing = c.find(i => i.productId === product.id && i.variantId === variant.id);
       if (existing) {
-        if (existing.qty >= p.stock) { ctx.toast('No more stock available.', 'bad'); return c; }
-        return c.map(i => i.productId === p.id ? { ...i, qty: i.qty + 1 } : i);
+        if (existing.qty >= variant.stock) { ctx.toast('No more stock available.', 'bad'); return c; }
+        return c.map(i => i === existing ? { ...i, qty: i.qty + 1 } : i);
       }
-      return [...c, { productId: p.id, name: p.name, price: p.price, qty: 1 }];
+      return [...c, { productId: product.id, variantId: variant.id, name: product.name + ' – ' + variant.name, price: product.price + variant.priceDelta, qty: 1 }];
+    });
+    setVariantPicker(null);
+  };
+
+  const addToCart = (p) => {
+    if (p.variants && p.variants.length > 0) { setVariantPicker(p); return; }
+    const avail = effectiveStock(p, products);
+    if (avail <= 0) { ctx.toast('That item is out of stock.', 'bad'); return; }
+    setCart(c => {
+      const existing = c.find(i => i.productId === p.id && !i.variantId);
+      if (existing) {
+        if (existing.qty >= avail) { ctx.toast('No more stock available.', 'bad'); return c; }
+        return c.map(i => i === existing ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...c, { productId: p.id, variantId: null, name: p.name, price: p.price, qty: 1 }];
     });
   };
-  const updateQty = (id, delta) => {
-    setCart(c => c.map(i => {
-      if (i.productId !== id) return i;
-      const prod = products.find(p => p.id === id);
-      const newQty = Math.max(1, Math.min(prod ? prod.stock : 99, i.qty + delta));
+  const updateQty = (idx, delta) => {
+    setCart(c => c.map((i, ii) => {
+      if (ii !== idx) return i;
+      const prod = products.find(p => p.id === i.productId);
+      const cap = i.variantId ? (prod?.variants.find(v => v.id === i.variantId)?.stock ?? 99) : effectiveStock(prod || {}, products);
+      const newQty = Math.max(1, Math.min(cap, i.qty + delta));
       return { ...i, qty: newQty };
     }));
   };
-  const removeFromCart = (id) => setCart(c => c.filter(i => i.productId !== id));
+  const removeFromCart = (idx) => setCart(c => c.filter((_, ii) => ii !== idx));
 
   const subtotal = cart.reduce((a, i) => a + i.price * i.qty, 0);
   const discountAmt = subtotal * (discount / 100);
-  const taxable = subtotal - discountAmt;
+  const couponDiscount = appliedCoupon ? (appliedCoupon.type === 'percent' ? subtotal * (appliedCoupon.value / 100) : Math.min(appliedCoupon.value, subtotal)) : 0;
+  const pointsDiscount = canRedeemLoyalty ? (redeemPoints / (loyaltySettings.redemptionRate || 100)) : 0;
+  const taxable = Math.max(0, subtotal - discountAmt - couponDiscount - pointsDiscount);
   const tax = taxable * (business.taxRate / 100);
   const total = taxable + tax;
+
+  const selectedCustomer = customers.find(c => c.id === customerId);
+  const maxRedeemable = selectedCustomer ? (selectedCustomer.loyaltyPoints || 0) : 0;
+
+  const applyCoupon = () => {
+    const c = coupons.find(cc => cc.code.toUpperCase() === couponCode.trim().toUpperCase() && cc.active);
+    if (!c) { ctx.toast('Invalid or inactive coupon code.', 'bad'); return; }
+    if (c.usageLimit && c.usedCount >= c.usageLimit) { ctx.toast('This coupon has reached its usage limit.', 'bad'); return; }
+    setAppliedCoupon(c);
+    ctx.toast('Coupon applied.', 'good');
+  };
 
   const holdOrder = () => {
     if (!cart.length) return;
@@ -1137,30 +1411,41 @@ function POS({ state, actions, ctx }) {
   };
   const resumeOrder = (h) => {
     setCart(h.cart); setCustomerId(h.customerId); setDiscount(h.discount); setNote(h.note);
+
     setHeldOrders(hs => hs.filter(x => x.id !== h.id));
   };
 
   const finalizeSale = (paymentMethod, splitPayments) => {
     const cust = customers.find(c => c.id === customerId);
     const emp = currentEmployee || employees[0];
+    const pointsEarned = (!cust || cust.isWalkIn) ? 0 : Math.floor(taxable * (loyaltySettings.pointsPerCurrencyUnit / (loyaltySettings.currencyUnitsPerPoint || 1)));
     const sale = {
       id: uid('sale'), date: new Date().toISOString(),
-      items: cart.map(i => ({ productId: i.productId, name: i.name, qty: i.qty, price: i.price, total: i.price * i.qty })),
-      subtotal, discount: discountAmt, discountPct: discount, tax, total,
+      items: cart.map(i => ({ productId: i.productId, variantId: i.variantId || null, name: i.name, qty: i.qty, price: i.price, total: i.price * i.qty })),
+      subtotal, discount: discountAmt + couponDiscount + pointsDiscount, discountPct: discount, couponCode: appliedCoupon?.code || null,
+      pointsRedeemed: redeemPoints || 0, pointsEarned, tax, total,
       paymentMethod: splitPayments ? 'Split (' + splitPayments.map(p => p.method).join(' + ') + ')' : paymentMethod,
       splitPayments: splitPayments || null,
       customerId, customerName: cust ? cust.name : 'Walk-in', employeeId: emp.id, employeeName: emp.name, status: 'completed', note,
+      tableId: restaurantOn && tableId ? tableId : null,
     };
     actions.recordSale(sale);
-    ctx.logActivity(emp.name, 'Created sale', 'pos', '#' + sale.id.slice(-6).toUpperCase(), 'success', fmtMoney(total, business.currency) + (discountAmt > 0 ? ', ' + discount + '% discount' : ''));
+    if (appliedCoupon) actions.redeemCoupon(appliedCoupon.id);
+    ctx.logActivity(emp.name, 'Created sale', 'pos', '#' + sale.id.slice(-6).toUpperCase(), 'success', fmtMoney(total, business.currency) + (discount > 0 ? ', ' + discount + '% discount' : ''));
     setReceipt(sale);
-    setCart([]); setDiscount(0); setNote(''); setShowCheckout(false);
+    setCart([]); setDiscount(0); setNote(''); setShowCheckout(false); setAppliedCoupon(null); setCouponCode(''); setRedeemPoints(0); setTableId('');
   };
 
   const completeSale = async (paymentMethod, splitPayments) => {
     if (discount > CUSTOM_DISCOUNT_THRESHOLD && !canCustomDiscount) {
       const ok = await ctx.requestApproval('pos.discount.custom', discount + '% discount exceeds the ' + CUSTOM_DISCOUNT_THRESHOLD + '% limit for this role.', 'Cart total ' + fmtMoney(total, business.currency));
       if (!ok) { ctx.toast('Sale not completed — approval was not granted.', 'bad'); return; }
+    }
+    if (!navigator.onLine) {
+      actions.queueOfflineSale({ paymentMethod, splitPayments, cart, subtotal, discountAmt: discount > 0 ? discountAmt + couponDiscount + pointsDiscount : couponDiscount + pointsDiscount, discount, tax, total, customerId, note, tableId });
+      ctx.toast('You\u2019re offline — sale queued and will sync automatically once back online.', 'warn');
+      setCart([]); setDiscount(0); setNote(''); setShowCheckout(false); setAppliedCoupon(null); setCouponCode(''); setRedeemPoints(0); setTableId('');
+      return;
     }
     finalizeSale(paymentMethod, splitPayments);
   };
@@ -1200,18 +1485,22 @@ function POS({ state, actions, ctx }) {
           ))}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.map(p => (
-            <button key={p.id} onClick={() => addToCart(p)} disabled={p.stock <= 0}
-              className="text-left bg-white border border-line rounded-lg p-3 hover:border-ink transition-colors disabled:opacity-40 disabled:cursor-not-allowed relative">
-              {p.stock <= p.reorderLevel && p.stock > 0 && <span className="absolute top-2 right-2"><Badge tone="warn">Low</Badge></span>}
-              {p.stock <= 0 && <span className="absolute top-2 right-2"><Badge tone="bad">Out</Badge></span>}
-              <div className="w-full aspect-square rounded-md bg-paper-dim mb-2 flex items-center justify-center text-ink-muted font-display text-lg">
-                {p.name.split(' ').map(w=>w[0]).slice(0,2).join('')}
-              </div>
-              <p className="text-sm font-medium truncate">{p.name}</p>
-              <p className="text-xs text-ink-muted tabular">{fmtMoney(p.price, business.currency)} · {p.stock} {p.unit}</p>
-            </button>
-          ))}
+          {filtered.map(p => {
+            const avail = effectiveStock(p, products);
+            return (
+              <button key={p.id} onClick={() => addToCart(p)} disabled={avail <= 0}
+                className="text-left bg-white border border-line rounded-lg p-3 hover:border-ink transition-colors disabled:opacity-40 disabled:cursor-not-allowed relative">
+                {avail <= p.reorderLevel && avail > 0 && <span className="absolute top-2 right-2"><Badge tone="warn">Low</Badge></span>}
+                {avail <= 0 && <span className="absolute top-2 right-2"><Badge tone="bad">Out</Badge></span>}
+                {p.variants && p.variants.length > 0 && <span className="absolute top-2 left-2"><Badge tone="default">Variants</Badge></span>}
+                <div className="w-full aspect-square rounded-md bg-paper-dim mb-2 flex items-center justify-center text-ink-muted font-display text-lg">
+                  {p.name.split(' ').map(w=>w[0]).slice(0,2).join('')}
+                </div>
+                <p className="text-sm font-medium truncate">{p.name}</p>
+                <p className="text-xs text-ink-muted tabular">{fmtMoney(p.price, business.currency)} · {avail} {p.unit}</p>
+              </button>
+            );
+          })}
           {filtered.length === 0 && <p className="text-sm text-ink-muted col-span-full py-8 text-center">No products match your search.</p>}
         </div>
       </div>
@@ -1222,25 +1511,29 @@ function POS({ state, actions, ctx }) {
             <h3 className="font-display font-medium">Current order</h3>
             {cart.length > 0 && <button onClick={() => setCart([])} className="text-xs text-clay">Clear</button>}
           </div>
-          <div className="px-4 py-2">
+          <div className="px-4 py-2 space-y-2">
             <Select label="" value={customerId} onChange={e => setCustomerId(e.target.value)}
               options={customers.map(c => ({ value: c.id, label: c.name }))} />
+            {restaurantOn && (
+              <Select label="" value={tableId} onChange={e => setTableId(e.target.value)}
+                options={[{ value: '', label: 'No table (counter order)' }, ...tables.map(t => ({ value: t.id, label: t.name }))]} />
+            )}
           </div>
           <div className="flex-1 overflow-y-auto px-4 space-y-2 py-2">
             {cart.length === 0 && <p className="text-sm text-ink-muted text-center py-10">Cart is empty. Tap a product to add it.</p>}
-            {cart.map(i => (
-              <div key={i.productId} className="flex items-center gap-2 py-2 border-b border-line last:border-0">
+            {cart.map((i, idx) => (
+              <div key={idx} className="flex items-center gap-2 py-2 border-b border-line last:border-0">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{i.name}</p>
                   <p className="text-xs text-ink-muted tabular">{fmtMoney(i.price, business.currency)}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <button onClick={() => updateQty(i.productId, -1)} className="w-6 h-6 rounded-full border border-line flex items-center justify-center"><IconMinus size={12}/></button>
+                  <button onClick={() => updateQty(idx, -1)} className="w-6 h-6 rounded-full border border-line flex items-center justify-center"><IconMinus size={12}/></button>
                   <span className="w-5 text-center text-sm tabular">{i.qty}</span>
-                  <button onClick={() => updateQty(i.productId, 1)} className="w-6 h-6 rounded-full border border-line flex items-center justify-center"><IconPlus size={12}/></button>
+                  <button onClick={() => updateQty(idx, 1)} className="w-6 h-6 rounded-full border border-line flex items-center justify-center"><IconPlus size={12}/></button>
                 </div>
                 <p className="text-sm font-medium tabular w-16 text-right">{fmtMoney(i.price * i.qty, business.currency)}</p>
-                <button onClick={() => removeFromCart(i.productId)} className="text-ink-muted hover:text-clay"><IconX size={14}/></button>
+                <button onClick={() => removeFromCart(idx)} className="text-ink-muted hover:text-clay"><IconX size={14}/></button>
               </div>
             ))}
           </div>
@@ -1253,8 +1546,31 @@ function POS({ state, actions, ctx }) {
             {discount > CUSTOM_DISCOUNT_THRESHOLD && !canCustomDiscount && (
               <p className="text-xs text-brass-dark flex items-center gap-1"><IconAlert size={12}/> Discounts over {CUSTOM_DISCOUNT_THRESHOLD}% need manager approval.</p>
             )}
+            {settings.enabledModules.loyalty && (
+              <>
+                {!appliedCoupon ? (
+                  <div className="flex gap-1.5">
+                    <input value={couponCode} onChange={e => setCouponCode(e.target.value)} placeholder="Coupon code" className="flex-1 px-2 py-1.5 border border-line rounded text-xs" />
+                    <Button size="sm" variant="outline" onClick={applyCoupon} disabled={!couponCode.trim()}>Apply</Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between text-xs bg-moss-light text-moss px-2 py-1.5 rounded-md">
+                    <span>Coupon {appliedCoupon.code} applied</span>
+                    <button onClick={() => setAppliedCoupon(null)}><IconX size={13}/></button>
+                  </div>
+                )}
+                {canRedeemLoyalty && maxRedeemable > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-ink-muted">Redeem points (max {maxRedeemable})</span>
+                    <input type="number" min="0" max={maxRedeemable} value={redeemPoints} onChange={e => setRedeemPoints(Math.max(0, Math.min(maxRedeemable, Number(e.target.value))))} className="w-16 text-right px-2 py-1 border border-line rounded tabular" />
+                  </div>
+                )}
+              </>
+            )}
             <div className="flex justify-between text-sm"><span className="text-ink-muted">Subtotal</span><span className="tabular">{fmtMoney(subtotal, business.currency)}</span></div>
             {discountAmt > 0 && <div className="flex justify-between text-sm"><span className="text-ink-muted">Discount</span><span className="tabular text-clay">-{fmtMoney(discountAmt, business.currency)}</span></div>}
+            {couponDiscount > 0 && <div className="flex justify-between text-sm"><span className="text-ink-muted">Coupon</span><span className="tabular text-clay">-{fmtMoney(couponDiscount, business.currency)}</span></div>}
+            {pointsDiscount > 0 && <div className="flex justify-between text-sm"><span className="text-ink-muted">Points redeemed</span><span className="tabular text-clay">-{fmtMoney(pointsDiscount, business.currency)}</span></div>}
             <div className="flex justify-between text-sm"><span className="text-ink-muted">Tax ({business.taxRate}%)</span><span className="tabular">{fmtMoney(tax, business.currency)}</span></div>
             <div className="flex justify-between font-semibold text-base pt-1 border-t border-line"><span>Total</span><span className="tabular">{fmtMoney(total, business.currency)}</span></div>
             <div className="flex gap-2 pt-1">
@@ -1264,6 +1580,20 @@ function POS({ state, actions, ctx }) {
           </div>
         </div>
       </div>
+
+      <Modal open={!!variantPicker} onClose={() => setVariantPicker(null)} title={'Choose an option — ' + (variantPicker?.name || '')} width="max-w-sm">
+        {variantPicker && (
+          <div className="space-y-2">
+            {variantPicker.variants.map(v => (
+              <button key={v.id} disabled={v.stock <= 0} onClick={() => addVariantToCart(variantPicker, v)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-line hover:border-ink disabled:opacity-40 disabled:cursor-not-allowed text-left">
+                <span className="text-sm font-medium">{v.name}</span>
+                <span className="text-xs text-ink-muted tabular">{fmtMoney(variantPicker.price + v.priceDelta, business.currency)} · {v.stock} left</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Modal>
 
       <Modal open={showCheckout} onClose={() => setShowCheckout(false)} title="Take payment">
         <CheckoutForm total={total} currency={business.currency} paymentMethods={settings.paymentMethods} onComplete={completeSale} />
@@ -1374,9 +1704,17 @@ function Receipt({ sale, business }) {
 
 /* ============================== PRODUCTS & INVENTORY ============================== */
 
-function ProductForm({ initial, categories, suppliers, currency, onSave, onCancel, canEditPrice = true, canEditCost = true }) {
-  const [f, setF] = useState(initial || { name: '', category: categories[0] || '', sku: '', barcode: '', cost: 0, price: 0, stock: 0, reorderLevel: 5, unit: 'pc', supplierId: suppliers[0]?.id || '', status: 'active' });
+function ProductForm({ initial, categories, suppliers, allProducts, currency, onSave, onCancel, canEditPrice = true, canEditCost = true }) {
+  const [f, setF] = useState(initial || { name: '', category: categories[0] || '', sku: '', barcode: '', cost: 0, price: 0, stock: 0, reorderLevel: 5, unit: 'pc', supplierId: suppliers[0]?.id || '', status: 'active', expiryDate: '', variants: [], isComposite: false, components: [] });
   const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  const addVariant = () => setF(x => ({ ...x, variants: [...(x.variants || []), { id: uid('var'), name: '', priceDelta: 0, stock: 0 }] }));
+  const updateVariant = (id, patch) => setF(x => ({ ...x, variants: x.variants.map(v => v.id === id ? { ...v, ...patch } : v) }));
+  const removeVariant = (id) => setF(x => ({ ...x, variants: x.variants.filter(v => v.id !== id) }));
+  const addComponent = () => setF(x => ({ ...x, components: [...(x.components || []), { productId: (allProducts || []).find(p => p.id !== x.id)?.id || '', qty: 1 }] }));
+  const updateComponent = (i, patch) => setF(x => ({ ...x, components: x.components.map((c, ci) => ci === i ? { ...c, ...patch } : c) }));
+  const removeComponent = (i) => setF(x => ({ ...x, components: x.components.filter((_, ci) => ci !== i) }));
+  const componentOptions = (allProducts || []).filter(p => p.id !== f.id && !p.isComposite);
+
   return (
     <div className="space-y-3">
       <Input label="Product name" value={f.name} onChange={e => set('name', e.target.value)} />
@@ -1395,11 +1733,50 @@ function ProductForm({ initial, categories, suppliers, currency, onSave, onCance
         <Input label={'Selling price (' + currency + ')' + (!canEditPrice ? ' 🔒' : '')} type="number" step="0.01" value={f.price} disabled={!canEditPrice} className="disabled:bg-paper-dim disabled:text-ink-muted" onChange={e => set('price', Number(e.target.value))} />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Input label="Stock on hand" type="number" value={f.stock} onChange={e => set('stock', Number(e.target.value))} />
+        <Input label="Stock on hand" type="number" value={f.stock} disabled={f.isComposite} className="disabled:bg-paper-dim disabled:text-ink-muted" onChange={e => set('stock', Number(e.target.value))} hint={f.isComposite ? 'Ignored — this item is a recipe (see below).' : undefined} />
         <Input label="Reorder level" type="number" value={f.reorderLevel} onChange={e => set('reorderLevel', Number(e.target.value))} />
       </div>
+      <Input label="Expiry date (optional)" type="date" value={f.expiryDate ? String(f.expiryDate).slice(0,10) : ''} onChange={e => set('expiryDate', e.target.value ? new Date(e.target.value).toISOString() : null)} />
       <Select label="Supplier" value={f.supplierId} onChange={e => set('supplierId', e.target.value)}
         options={[{ value: '', label: 'None' }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]} />
+
+      <div className="pt-2 border-t border-line">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium">Variants</span>
+          <button type="button" onClick={addVariant} className="text-xs text-brass-dark font-medium flex items-center gap-1"><IconPlus size={12}/> Add variant</button>
+        </div>
+        <p className="text-xs text-ink-muted mb-2">Optional. e.g. sizes — each variant tracks its own stock and price adjustment.</p>
+        {(f.variants || []).map(v => (
+          <div key={v.id} className="flex gap-2 items-center mb-1.5">
+            <input value={v.name} onChange={e => updateVariant(v.id, { name: e.target.value })} placeholder="Name (e.g. Large)" className="flex-1 px-2 py-1.5 border border-line rounded-md text-sm" />
+            <input type="number" step="0.01" value={v.priceDelta} onChange={e => updateVariant(v.id, { priceDelta: Number(e.target.value) })} placeholder="+price" className="w-20 px-2 py-1.5 border border-line rounded-md text-sm tabular" />
+            <input type="number" value={v.stock} onChange={e => updateVariant(v.id, { stock: Number(e.target.value) })} placeholder="Stock" className="w-20 px-2 py-1.5 border border-line rounded-md text-sm tabular" />
+            <button type="button" onClick={() => removeVariant(v.id)} className="text-ink-muted hover:text-clay"><IconX size={14}/></button>
+          </div>
+        ))}
+      </div>
+
+      <div className="pt-2 border-t border-line">
+        <label className="flex items-center gap-2 text-sm font-medium mb-2">
+          <input type="checkbox" checked={f.isComposite} onChange={e => set('isComposite', e.target.checked)} className="rounded border-line" />
+          This is a recipe / bundle (deducts ingredients instead of its own stock)
+        </label>
+        {f.isComposite && (
+          <div>
+            <button type="button" onClick={addComponent} className="text-xs text-brass-dark font-medium flex items-center gap-1 mb-1.5"><IconPlus size={12}/> Add ingredient</button>
+            {(f.components || []).map((c, i) => (
+              <div key={i} className="flex gap-2 items-center mb-1.5">
+                <select value={c.productId} onChange={e => updateComponent(i, { productId: e.target.value })} className="flex-1 px-2 py-1.5 border border-line rounded-md text-sm">
+                  {componentOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <input type="number" step="0.01" value={c.qty} onChange={e => updateComponent(i, { qty: Number(e.target.value) })} className="w-24 px-2 py-1.5 border border-line rounded-md text-sm tabular" />
+                <button type="button" onClick={() => removeComponent(i)} className="text-ink-muted hover:text-clay"><IconX size={14}/></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <ConfirmBar>
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button variant="primary" onClick={() => onSave(f)} disabled={!f.name}>Save product</Button>
@@ -1425,8 +1802,10 @@ function Products({ state, actions, ctx }) {
 
   const categories = Array.from(new Set(products.map(p => p.category)));
   const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()));
-  const lowStock = products.filter(p => p.stock <= p.reorderLevel);
-  const inventoryValue = products.reduce((a, p) => a + p.stock * p.cost, 0);
+  const lowStock = products.filter(p => !p.isComposite && p.stock <= p.reorderLevel);
+  const expired = products.filter(p => p.expiryDate && new Date(p.expiryDate) < new Date());
+  const expiringSoon = products.filter(p => p.expiryDate && new Date(p.expiryDate) >= new Date() && new Date(p.expiryDate) < new Date(Date.now() + 3 * 86400000));
+  const inventoryValue = products.reduce((a, p) => a + (p.isComposite ? 0 : p.stock * p.cost), 0);
 
   const handleDelete = async (p) => {
     if (!canDelete) {
@@ -1493,21 +1872,42 @@ function Products({ state, actions, ctx }) {
       )}
 
       {tab === 'alerts' && (
-        <Card padded={false}>
-          {lowStock.length === 0 ? <EmptyState icon={<IconCheck size={22}/>} title="All stocked up" message="No products are currently below their reorder level." /> : (
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-4 py-2.5 font-medium">Product</th><th className="px-2 py-2.5 font-medium">Current stock</th><th className="px-2 py-2.5 font-medium">Reorder level</th><th className="px-4 py-2.5 font-medium">Status</th></tr></thead>
-              <tbody>{lowStock.map(p => (
-                <tr key={p.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-2.5 font-medium">{p.name}</td>
-                  <td className="px-2 py-2.5 tabular">{p.stock} {p.unit}</td>
-                  <td className="px-2 py-2.5 tabular text-ink-muted">{p.reorderLevel} {p.unit}</td>
-                  <td className="px-4 py-2.5">{p.stock <= 0 ? <Badge tone="bad">Out of stock</Badge> : <Badge tone="warn">Reorder soon</Badge>}</td>
-                </tr>
-              ))}</tbody>
-            </table>
+        <div className="space-y-5">
+          <Card padded={false} title="Low & out of stock">
+            {lowStock.length === 0 ? <p className="text-sm text-ink-muted text-center py-6">No products are currently below their reorder level.</p> : (
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-4 py-2.5 font-medium">Product</th><th className="px-2 py-2.5 font-medium">Current stock</th><th className="px-2 py-2.5 font-medium">Reorder level</th><th className="px-4 py-2.5 font-medium">Status</th></tr></thead>
+                <tbody>{lowStock.map(p => (
+                  <tr key={p.id} className="border-b border-line last:border-0">
+                    <td className="px-4 py-2.5 font-medium">{p.name}</td>
+                    <td className="px-2 py-2.5 tabular">{p.stock} {p.unit}</td>
+                    <td className="px-2 py-2.5 tabular text-ink-muted">{p.reorderLevel} {p.unit}</td>
+                    <td className="px-4 py-2.5">{p.stock <= 0 ? <Badge tone="bad">Out of stock</Badge> : <Badge tone="warn">Reorder soon</Badge>}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            )}
+          </Card>
+          {(expired.length > 0 || expiringSoon.length > 0) && (
+            <Card padded={false} title="Expiring & expired">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-4 py-2.5 font-medium">Product</th><th className="px-2 py-2.5 font-medium">Expiry date</th><th className="px-4 py-2.5 font-medium">Status</th></tr></thead>
+                <tbody>
+                  {expired.map(p => (
+                    <tr key={p.id} className="border-b border-line last:border-0">
+                      <td className="px-4 py-2.5 font-medium">{p.name}</td><td className="px-2 py-2.5">{fmtDate(p.expiryDate)}</td><td className="px-4 py-2.5"><Badge tone="bad">Expired</Badge></td>
+                    </tr>
+                  ))}
+                  {expiringSoon.map(p => (
+                    <tr key={p.id} className="border-b border-line last:border-0">
+                      <td className="px-4 py-2.5 font-medium">{p.name}</td><td className="px-2 py-2.5">{fmtDate(p.expiryDate)}</td><td className="px-4 py-2.5"><Badge tone="warn">Expiring soon</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
           )}
-        </Card>
+        </div>
       )}
 
       {tab === 'movements' && (
@@ -1533,10 +1933,25 @@ function Products({ state, actions, ctx }) {
       )}
 
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit product' : 'Add product'}>
-        {modal && <ProductForm initial={modal.product} categories={categories} suppliers={suppliers} currency={business.currency}
+        {modal && <ProductForm initial={modal.product} categories={categories} suppliers={suppliers} allProducts={products} currency={business.currency}
           canEditPrice={canEditPrice} canEditCost={canEditCost}
           onCancel={() => setModal(null)}
-          onSave={(f) => { modal.mode === 'edit' ? actions.updateProduct(f) : actions.addProduct(f); setModal(null); ctx.logActivity(currentEmployee?.name, modal.mode === 'edit' ? 'Edited product' : 'Created product', 'products', f.name, 'success', ''); ctx.toast('Product saved.', 'good'); }} />}
+          onSave={(f) => {
+            let diffNote = '';
+            if (modal.mode === 'edit') {
+              const before = modal.product;
+              const changes = [];
+              if (before.price !== f.price) changes.push('price ' + fmtMoney(before.price, business.currency) + ' → ' + fmtMoney(f.price, business.currency));
+              if (before.cost !== f.cost) changes.push('cost ' + fmtMoney(before.cost, business.currency) + ' → ' + fmtMoney(f.cost, business.currency));
+              diffNote = changes.join(', ');
+              actions.updateProduct(f);
+            } else {
+              actions.addProduct(f);
+            }
+            setModal(null);
+            ctx.logActivity(currentEmployee?.name, modal.mode === 'edit' ? 'Edited product' : 'Created product', 'products', f.name, 'success', diffNote);
+            ctx.toast('Product saved.', 'good');
+          }} />}
       </Modal>
 
       <Modal open={!!adjust} onClose={() => setAdjust(null)} title={'Adjust stock — ' + (adjust?.name || '')} width="max-w-sm">
@@ -1801,7 +2216,359 @@ function CustomerForm({ initial, onCancel, onSave }) {
   );
 }
 
-/* ============================== SHARED ADMIN COMPONENTS ============================== */
+/* ============================== CASH REGISTER ============================== */
+
+function CashRegister({ state, actions, ctx }) {
+  const { registerSessions, sales, roles, business, branches } = state;
+  const currentEmployee = ctx.currentEmployee;
+  const canOpen = can(currentEmployee, roles, 'register.open');
+  const canClose = can(currentEmployee, roles, 'register.close');
+  const canMove = can(currentEmployee, roles, 'register.cash_movement');
+  const openSession = registerSessions.find(s => s.status === 'open');
+  const [openModal, setOpenModal] = useState(false);
+  const [closeModal, setCloseModal] = useState(false);
+  const [moveModal, setMoveModal] = useState(null); // 'in' | 'out'
+
+  const cashSalesSince = openSession ? sales.filter(s => new Date(s.date) >= new Date(openSession.openedAt) && s.paymentMethod === 'Cash' && s.status !== 'refunded') : [];
+  const cashRefundsSince = openSession ? sales.filter(s => new Date(s.date) >= new Date(openSession.openedAt) && s.paymentMethod === 'Cash' && s.status === 'refunded') : [];
+  const cashInTotal = openSession ? openSession.cashIn.reduce((a, c) => a + c.amount, 0) : 0;
+  const cashOutTotal = openSession ? openSession.cashOut.reduce((a, c) => a + c.amount, 0) : 0;
+  const expected = openSession ? openSession.openingBalance + cashSalesSince.reduce((a, s) => a + s.total, 0) - cashRefundsSince.reduce((a, s) => a + s.total, 0) + cashInTotal - cashOutTotal : 0;
+
+  const closedSessions = registerSessions.filter(s => s.status === 'closed').sort((a, b) => new Date(b.closedAt) - new Date(a.closedAt));
+
+  return (
+    <div className="space-y-5">
+      {!openSession ? (
+        <Card>
+          <EmptyState icon={<IconRegister size={22}/>} title="No register session is open" message="Open a session with a starting cash float before taking cash payments."
+            action={canOpen ? <Button variant="primary" onClick={() => setOpenModal(true)}>Open register</Button> : <p className="text-xs text-ink-muted">You don't have permission to open the register.</p>} />
+        </Card>
+      ) : (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Opening float" value={fmtMoney(openSession.openingBalance, business.currency)} sub={'Opened ' + fmtDateTime(openSession.openedAt) + ' by ' + openSession.openedBy} />
+            <StatCard label="Cash sales this session" value={fmtMoney(cashSalesSince.reduce((a,s)=>a+s.total,0), business.currency)} sub={cashSalesSince.length + ' transactions'} />
+            <StatCard label="Cash in / out" value={fmtMoney(cashInTotal - cashOutTotal, business.currency)} sub={fmtMoney(cashInTotal, business.currency) + ' in, ' + fmtMoney(cashOutTotal, business.currency) + ' out'} />
+            <StatCard label="Expected in drawer" value={fmtMoney(expected, business.currency)} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {canMove && <Button variant="outline" icon={<IconPlus size={15}/>} onClick={() => setMoveModal('in')}>Cash in</Button>}
+            {canMove && <Button variant="outline" icon={<IconMinus size={15}/>} onClick={() => setMoveModal('out')}>Cash out</Button>}
+            {canClose && <Button variant="brass" onClick={() => setCloseModal(true)}>Close register</Button>}
+          </div>
+          <Card title="Cash movements this session" padded={false}>
+            {openSession.cashIn.length === 0 && openSession.cashOut.length === 0 ? (
+              <p className="text-sm text-ink-muted text-center py-6">No manual cash movements yet.</p>
+            ) : (
+              <div className="divide-y divide-line">
+                {[...openSession.cashIn.map(c => ({ ...c, dir: 'in' })), ...openSession.cashOut.map(c => ({ ...c, dir: 'out' }))]
+                  .sort((a, b) => new Date(b.date) - new Date(a.date))
+                  .map((c, i) => (
+                    <div key={i} className="px-5 py-2.5 flex items-center justify-between text-sm">
+                      <span>{c.note || (c.dir === 'in' ? 'Cash in' : 'Cash out')}</span>
+                      <span className={'font-medium tabular ' + (c.dir === 'in' ? 'text-moss' : 'text-clay')}>{c.dir === 'in' ? '+' : '-'}{fmtMoney(c.amount, business.currency)}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      <Card title="Past sessions" padded={false}>
+        {closedSessions.length === 0 ? <p className="text-sm text-ink-muted text-center py-6">No closed sessions yet.</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-5 py-2.5 font-medium">Closed</th><th className="px-2 py-2.5 font-medium">Opened by</th><th className="px-2 py-2.5 font-medium">Expected</th><th className="px-2 py-2.5 font-medium">Actual</th><th className="px-5 py-2.5 font-medium text-right">Variance</th></tr></thead>
+              <tbody>{closedSessions.map(s => (
+                <tr key={s.id} className="border-b border-line last:border-0">
+                  <td className="px-5 py-2.5 text-ink-muted whitespace-nowrap">{fmtDateTime(s.closedAt)}</td>
+                  <td className="px-2 py-2.5">{s.openedBy}</td>
+                  <td className="px-2 py-2.5 tabular">{fmtMoney(s.expectedClosingBalance, business.currency)}</td>
+                  <td className="px-2 py-2.5 tabular">{fmtMoney(s.actualClosingBalance, business.currency)}</td>
+                  <td className={'px-5 py-2.5 text-right tabular font-medium ' + (Math.abs(s.variance) < 0.01 ? '' : s.variance < 0 ? 'text-clay' : 'text-moss')}>
+                    {s.variance > 0 ? '+' : ''}{fmtMoney(s.variance, business.currency)}
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Modal open={openModal} onClose={() => setOpenModal(false)} title="Open register" width="max-w-sm">
+        <OpenRegisterForm onCancel={() => setOpenModal(false)} onSave={(bal) => {
+          actions.openRegister(bal, currentEmployee?.name);
+          ctx.logActivity(currentEmployee?.name, 'Opened register', 'register', 'Session', 'success', 'Opening float ' + fmtMoney(bal, business.currency));
+          setOpenModal(false); ctx.toast('Register opened.', 'good');
+        }} currency={business.currency} />
+      </Modal>
+
+      <Modal open={!!moveModal} onClose={() => setMoveModal(null)} title={moveModal === 'in' ? 'Cash in' : 'Cash out'} width="max-w-sm">
+        <CashMovementForm onCancel={() => setMoveModal(null)} onSave={(amount, note) => {
+          actions.addCashMovement(moveModal, amount, note);
+          ctx.logActivity(currentEmployee?.name, moveModal === 'in' ? 'Recorded cash in' : 'Recorded cash out', 'register', note || '', 'success', fmtMoney(amount, business.currency));
+          setMoveModal(null); ctx.toast('Recorded.', 'good');
+        }} />
+      </Modal>
+
+      <Modal open={closeModal} onClose={() => setCloseModal(false)} title="Close register" width="max-w-sm">
+        <CloseRegisterForm expected={expected} currency={business.currency} onCancel={() => setCloseModal(false)} onSave={(actual) => {
+          actions.closeRegister(actual, expected, currentEmployee?.name);
+          ctx.logActivity(currentEmployee?.name, 'Closed register', 'register', 'Session', 'success', 'Variance ' + fmtMoney(actual - expected, business.currency));
+          setCloseModal(false); ctx.toast('Register closed.', 'good');
+        }} />
+      </Modal>
+    </div>
+  );
+}
+
+function OpenRegisterForm({ onCancel, onSave, currency }) {
+  const [bal, setBal] = useState(0);
+  return (
+    <div className="space-y-3">
+      <Input label={'Opening float (' + currency + ')'} type="number" step="0.01" value={bal} onChange={e => setBal(Number(e.target.value))} autoFocus />
+      <ConfirmBar><Button variant="ghost" onClick={onCancel}>Cancel</Button><Button variant="primary" onClick={() => onSave(bal)}>Open</Button></ConfirmBar>
+    </div>
+  );
+}
+function CashMovementForm({ onCancel, onSave }) {
+  const [amount, setAmount] = useState(0);
+  const [note, setNote] = useState('');
+  return (
+    <div className="space-y-3">
+      <Input label="Amount" type="number" step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))} autoFocus />
+      <Input label="Note" value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Petty cash, change float top-up" />
+      <ConfirmBar><Button variant="ghost" onClick={onCancel}>Cancel</Button><Button variant="primary" disabled={!amount} onClick={() => onSave(amount, note)}>Save</Button></ConfirmBar>
+    </div>
+  );
+}
+function CloseRegisterForm({ expected, currency, onCancel, onSave }) {
+  const [actual, setActual] = useState(expected.toFixed(2));
+  const variance = Number(actual || 0) - expected;
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink-muted">Expected in drawer: <span className="font-medium text-ink tabular">{fmtMoney(expected, currency)}</span></p>
+      <Input label="Counted amount" type="number" step="0.01" value={actual} onChange={e => setActual(e.target.value)} autoFocus />
+      <p className={'text-sm ' + (Math.abs(variance) < 0.01 ? 'text-moss' : 'text-clay')}>
+        {Math.abs(variance) < 0.01 ? 'Balances exactly.' : (variance > 0 ? 'Over by ' : 'Short by ') + fmtMoney(Math.abs(variance), currency)}
+      </p>
+      <ConfirmBar><Button variant="ghost" onClick={onCancel}>Cancel</Button><Button variant="brass" onClick={() => onSave(Number(actual))}>Close register</Button></ConfirmBar>
+    </div>
+  );
+}
+
+/* ============================== LOYALTY ============================== */
+
+function Loyalty({ state, actions, ctx }) {
+  const { loyaltySettings, coupons, customers, business, roles } = state;
+  const canManage = can(ctx.currentEmployee, roles, 'loyalty.manage');
+  const [tab, setTab] = useState('overview');
+  const [couponModal, setCouponModal] = useState(false);
+  const [settingsForm, setSettingsForm] = useState(loyaltySettings);
+
+  const ranked = customers.filter(c => !c.isWalkIn).slice().sort((a, b) => (b.loyaltyPoints || 0) - (a.loyaltyPoints || 0));
+  const tierFor = (spent) => [...loyaltySettings.tiers].reverse().find(t => spent >= t.threshold)?.name || loyaltySettings.tiers[0]?.name;
+
+  return (
+    <div>
+      <div className="flex gap-1 bg-paper-dim rounded-lg p-1 mb-4 w-fit">
+        {[['overview','Overview'],['coupons','Coupons'],['settings','Program Settings']].map(([k,l]) => (
+          <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+        ))}
+      </div>
+
+      {tab === 'overview' && (
+        <div className="space-y-5">
+          <div className="grid sm:grid-cols-3 gap-4">
+            <StatCard label="Points issued (all time)" value={customers.reduce((a,c) => a + (c.loyaltyPoints || 0), 0).toLocaleString()} />
+            <StatCard label="Enrolled customers" value={customers.filter(c => !c.isWalkIn).length} />
+            <StatCard label="Active coupons" value={coupons.filter(c => c.active).length} />
+          </div>
+          <Card title="Top members by points" padded={false}>
+            {ranked.length === 0 ? <p className="text-sm text-ink-muted text-center py-6">No customers enrolled yet.</p> : (
+              <div className="divide-y divide-line">
+                {ranked.slice(0, 10).map(c => (
+                  <div key={c.id} className="px-5 py-2.5 flex items-center justify-between text-sm">
+                    <span>{c.name}</span>
+                    <div className="flex items-center gap-2">
+                      <Badge tone={tierFor(c.totalSpent) === 'Gold' ? 'warn' : tierFor(c.totalSpent) === 'Silver' ? 'default' : 'good'}>{tierFor(c.totalSpent)}</Badge>
+                      <span className="tabular font-medium w-16 text-right">{(c.loyaltyPoints || 0).toLocaleString()} pts</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {tab === 'coupons' && (
+        <Card padded={false} title="Coupons" action={canManage && <Button size="sm" variant="primary" icon={<IconPlus size={13}/>} onClick={() => setCouponModal(true)}>New coupon</Button>}>
+          {coupons.length === 0 ? <div className="px-5 pb-5"><EmptyState icon={<IconGift size={22}/>} title="No coupons yet" message="Create a coupon code customers can redeem at checkout." /></div> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-ink-muted border-b border-line"><th className="px-5 py-2.5 font-medium">Code</th><th className="px-2 py-2.5 font-medium">Discount</th><th className="px-2 py-2.5 font-medium">Used</th><th className="px-2 py-2.5 font-medium">Status</th><th className="px-5 py-2.5 font-medium text-right">Actions</th></tr></thead>
+                <tbody>{coupons.map(c => (
+                  <tr key={c.id} className="border-b border-line last:border-0">
+                    <td className="px-5 py-2.5 font-mono font-medium">{c.code}</td>
+                    <td className="px-2 py-2.5">{c.type === 'percent' ? c.value + '%' : fmtMoney(c.value, business.currency)}</td>
+                    <td className="px-2 py-2.5 tabular text-ink-muted">{c.usedCount}{c.usageLimit ? ' / ' + c.usageLimit : ''}</td>
+                    <td className="px-2 py-2.5">{c.active ? <Badge tone="good">Active</Badge> : <Badge tone="default">Disabled</Badge>}</td>
+                    <td className="px-5 py-2.5 text-right">{canManage && <Button size="sm" variant="ghost" onClick={() => actions.toggleCoupon(c.id)}>{c.active ? 'Disable' : 'Enable'}</Button>}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {tab === 'settings' && (
+        <Card title="Program settings">
+          <div className="space-y-3 max-w-sm">
+            <Input label="Points earned per currency unit spent" type="number" step="0.1" value={settingsForm.pointsPerCurrencyUnit}
+              disabled={!canManage} onChange={e => setSettingsForm(s => ({ ...s, pointsPerCurrencyUnit: Number(e.target.value) }))} />
+            <Input label="Points needed to redeem for 1 currency unit" type="number" value={settingsForm.redemptionRate}
+              disabled={!canManage} onChange={e => setSettingsForm(s => ({ ...s, redemptionRate: Number(e.target.value) }))} />
+            <div>
+              <p className="text-xs font-medium text-ink-muted mb-1.5">Tier thresholds (total lifetime spend)</p>
+              {settingsForm.tiers.map((t, i) => (
+                <div key={t.name} className="flex items-center gap-2 mb-1.5">
+                  <span className="text-sm w-16">{t.name}</span>
+                  <input type="number" disabled={!canManage} value={t.threshold} onChange={e => setSettingsForm(s => ({ ...s, tiers: s.tiers.map((tt, ti) => ti === i ? { ...tt, threshold: Number(e.target.value) } : tt) }))}
+                    className="flex-1 px-2 py-1.5 border border-line rounded text-sm tabular disabled:bg-paper-dim" />
+                </div>
+              ))}
+            </div>
+            {canManage && <Button variant="primary" onClick={() => { actions.updateLoyaltySettings(settingsForm); ctx.logActivity(ctx.currentEmployee?.name, 'Updated loyalty settings', 'loyalty', '', 'success', ''); ctx.toast('Loyalty settings saved.', 'good'); }}>Save settings</Button>}
+          </div>
+        </Card>
+      )}
+
+      <Modal open={couponModal} onClose={() => setCouponModal(false)} title="New coupon" width="max-w-sm">
+        <CouponForm onCancel={() => setCouponModal(false)} onSave={(f) => { actions.addCoupon(f); setCouponModal(false); ctx.toast('Coupon created.', 'good'); }} />
+      </Modal>
+    </div>
+  );
+}
+
+function CouponForm({ onCancel, onSave }) {
+  const [f, setF] = useState({ code: '', type: 'percent', value: 10, usageLimit: '' });
+  return (
+    <div className="space-y-3">
+      <Input label="Coupon code" value={f.code} onChange={e => setF(x => ({ ...x, code: e.target.value.toUpperCase() }))} placeholder="SUMMER20" />
+      <div className="grid grid-cols-2 gap-3">
+        <Select label="Type" value={f.type} onChange={e => setF(x => ({ ...x, type: e.target.value }))} options={[{value:'percent',label:'Percent off'},{value:'fixed',label:'Fixed amount off'}]} />
+        <Input label="Value" type="number" value={f.value} onChange={e => setF(x => ({ ...x, value: Number(e.target.value) }))} />
+      </div>
+      <Input label="Usage limit (optional)" type="number" value={f.usageLimit} onChange={e => setF(x => ({ ...x, usageLimit: e.target.value }))} />
+      <ConfirmBar><Button variant="ghost" onClick={onCancel}>Cancel</Button><Button variant="primary" disabled={!f.code} onClick={() => onSave({ ...f, usageLimit: f.usageLimit ? Number(f.usageLimit) : null })}>Create</Button></ConfirmBar>
+    </div>
+  );
+}
+
+/* ============================== RESTAURANT ============================== */
+
+const TABLE_STATUS_CYCLE = { open: 'occupied', occupied: 'needs_cleaning', needs_cleaning: 'open' };
+const TABLE_STATUS_LABEL = { open: 'Open', occupied: 'Occupied', needs_cleaning: 'Needs cleaning' };
+const TABLE_STATUS_TONE = { open: 'good', occupied: 'warn', needs_cleaning: 'bad' };
+
+function Restaurant({ state, actions, ctx }) {
+  const { tables, employees, sales, products, roles } = state;
+  const canManageTables = can(ctx.currentEmployee, roles, 'restaurant.tables.manage');
+  const canUpdateKitchen = can(ctx.currentEmployee, roles, 'restaurant.kitchen.update');
+  const canManageRecipes = can(ctx.currentEmployee, roles, 'restaurant.recipes.manage');
+  const [tab, setTab] = useState('tables');
+
+  const todaysSales = sales.filter(s => dayKey(s.date) === dayKey(new Date().toISOString())).slice(0, 20);
+  const recipeProducts = products.filter(p => p.isComposite && p.components.length > 0);
+
+  return (
+    <div>
+      <div className="flex gap-1 bg-paper-dim rounded-lg p-1 mb-4 w-fit">
+        {[['tables','Tables'],['kitchen','Kitchen Display'],['recipes','Recipes']].map(([k,l]) => (
+          <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+        ))}
+      </div>
+
+      {tab === 'tables' && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tables.map(t => {
+            const waiter = employees.find(e => e.id === t.waiterId);
+            return (
+              <Card key={t.id}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-display text-lg font-medium">{t.name}</p>
+                  <Badge tone={TABLE_STATUS_TONE[t.status]}>{TABLE_STATUS_LABEL[t.status]}</Badge>
+                </div>
+                <p className="text-xs text-ink-muted mb-3">{t.seats} seats {waiter ? '· ' + waiter.name : ''}</p>
+                {canManageTables && (
+                  <div className="flex gap-1.5">
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => actions.cycleTableStatus(t.id)}>Mark {TABLE_STATUS_LABEL[TABLE_STATUS_CYCLE[t.status]]}</Button>
+                    <select value={t.waiterId || ''} onChange={e => actions.assignTableWaiter(t.id, e.target.value || null)} className="text-xs border border-line rounded-md px-1.5">
+                      <option value="">No waiter</option>
+                      {employees.filter(e => e.status === 'active').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                    </select>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'kitchen' && (
+        <Card padded={false}>
+          {todaysSales.length === 0 ? <EmptyState icon={<IconChefHat size={22}/>} title="No tickets yet" message="Orders rung up in POS today will appear here for the kitchen to work through." /> : (
+            <div className="divide-y divide-line">
+              {todaysSales.map(s => (
+                <div key={s.id} className="px-5 py-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-sm font-medium">#{s.id.slice(-6).toUpperCase()} · {s.customerName}</p>
+                    <div className="flex items-center gap-2">
+                      <Badge tone={s.kitchenStatus === 'ready' ? 'good' : s.kitchenStatus === 'preparing' ? 'warn' : 'default'}>{s.kitchenStatus ? s.kitchenStatus[0].toUpperCase()+s.kitchenStatus.slice(1) : 'New'}</Badge>
+                      <span className="text-xs text-ink-muted">{fmtDateTime(s.date)}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-ink-muted mb-2">{s.items.map(it => it.qty + '× ' + it.name).join(', ')}</p>
+                  {canUpdateKitchen && (
+                    <div className="flex gap-1.5">
+                      {['preparing','ready','served'].map(st => (
+                        <Button key={st} size="sm" variant={s.kitchenStatus === st ? 'primary' : 'outline'} onClick={() => actions.setKitchenStatus(s.id, st)}>{st[0].toUpperCase()+st.slice(1)}</Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {tab === 'recipes' && (
+        <Card padded={false}>
+          <div className="px-5 pt-4 pb-2">
+            <p className="text-sm text-ink-muted">Products marked as a recipe deduct their ingredients from inventory automatically when sold, instead of tracking their own stock count. Set this up from a product's edit form in <span className="font-medium">Products & Inventory</span>.</p>
+          </div>
+          {recipeProducts.length === 0 ? <div className="px-5 pb-5"><EmptyState icon={<IconChefHat size={22}/>} title="No recipes configured" message="Mark a product as a recipe and list its ingredients to see it here." /></div> : (
+            <div className="divide-y divide-line">
+              {recipeProducts.map(p => (
+                <div key={p.id} className="px-5 py-3">
+                  <p className="text-sm font-medium mb-1">{p.name}</p>
+                  <p className="text-xs text-ink-muted">{p.components.map(c => { const ing = products.find(pp => pp.id === c.productId); return (ing ? ing.name : 'Unknown') + ' × ' + c.qty; }).join(', ')}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+
 
 function StatusBadge({ status }) {
   if (status === 'active') return <Badge tone="good">Active</Badge>;
@@ -2657,8 +3424,11 @@ function ExpenseForm({ paymentMethods, onCancel, onSave }) {
 /* ============================== REPORTS ============================== */
 
 function Reports({ state }) {
-  const { sales, products, expenses, employees, business } = state;
+  const { products, employees, business, branches } = state;
   const [tab, setTab] = useState('sales');
+  const [branchFilter, setBranchFilter] = useState('All');
+  const sales = state.sales.filter(s => branchFilter === 'All' || (s.branchId || 'branch_main') === branchFilter);
+  const expenses = state.expenses.filter(e => branchFilter === 'All' || (e.branchId || 'branch_main') === branchFilter);
 
   const salesByDay = {};
   sales.forEach(s => { const k = dayKey(s.date); salesByDay[k] = (salesByDay[k] || 0) + s.total; });
@@ -2691,10 +3461,18 @@ function Reports({ state }) {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex gap-1 bg-paper-dim rounded-lg p-1 overflow-x-auto">
-          {[['sales','Sales'],['inventory','Inventory'],['finance','Finance']].map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)} className={'shrink-0 px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 bg-paper-dim rounded-lg p-1 overflow-x-auto">
+            {[['sales','Sales'],['inventory','Inventory'],['finance','Finance'],['insights','Insights']].map(([k,l]) => (
+              <button key={k} onClick={() => setTab(k)} className={'shrink-0 px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+            ))}
+          </div>
+          {branches.length > 1 && (
+            <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="text-sm border border-line rounded-md px-2 py-1.5 bg-white">
+              <option value="All">All branches</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          )}
         </div>
         {tab === 'sales' && <Button variant="outline" size="sm" icon={<IconDownload size={14}/>} onClick={() => downloadCSV('sales-report.csv', sales.map(s => ({ date: s.date, customer: s.customerName, employee: s.employeeName, payment: s.paymentMethod, subtotal: s.subtotal.toFixed(2), tax: s.tax.toFixed(2), total: s.total.toFixed(2) })))}>Export CSV</Button>}
         {tab === 'inventory' && <Button variant="outline" size="sm" icon={<IconDownload size={14}/>} onClick={() => downloadCSV('inventory-valuation.csv', inventoryValuation.map(p => ({ product: p.name, quantity: p.qty, unit_cost: p.cost.toFixed(2), total_value: p.value.toFixed(2) })))}>Export CSV</Button>}
@@ -2766,11 +3544,75 @@ function Reports({ state }) {
           </Card>
         </div>
       )}
+      {tab === 'insights' && <InsightsPanel sales={sales} products={products} business={business} />}
     </div>
   );
 }
 
-/* ============================== SETTINGS ============================== */
+function InsightsPanel({ sales, products, business }) {
+  const insights = [];
+  const now = new Date();
+  const last7 = sales.filter(s => (now - new Date(s.date)) / 86400000 <= 7 && s.status !== 'refunded');
+  const prev7 = sales.filter(s => { const d = (now - new Date(s.date)) / 86400000; return d > 7 && d <= 14 && s.status !== 'refunded'; });
+  const last7Total = last7.reduce((a, s) => a + s.total, 0);
+  const prev7Total = prev7.reduce((a, s) => a + s.total, 0);
+  if (prev7Total > 0) {
+    const pct = Math.round(((last7Total - prev7Total) / prev7Total) * 100);
+    if (Math.abs(pct) >= 5) insights.push({ tone: pct >= 0 ? 'good' : 'bad', text: 'Sales ' + (pct >= 0 ? 'increased' : 'decreased') + ' ' + Math.abs(pct) + '% over the last 7 days compared to the previous 7.' });
+  }
+
+  const qtyByProduct = {};
+  sales.filter(s => s.status !== 'refunded').forEach(s => s.items.forEach(it => { qtyByProduct[it.name] = (qtyByProduct[it.name] || 0) + it.qty; }));
+  const ranked = Object.entries(qtyByProduct).sort((a, b) => b[1] - a[1]);
+  if (ranked.length > 0) insights.push({ tone: 'good', text: ranked[0][0] + ' is your fastest-selling item, with ' + ranked[0][1] + ' units sold.' });
+  const soldNames = new Set(Object.keys(qtyByProduct));
+  const neverSold = products.filter(p => !p.isComposite && p.status === 'active' && !soldNames.has(p.name));
+  if (neverSold.length > 0) insights.push({ tone: 'warn', text: neverSold.length + ' active product' + (neverSold.length !== 1 ? 's have' : ' has') + ' had no sales at all: ' + neverSold.slice(0, 3).map(p => p.name).join(', ') + (neverSold.length > 3 ? '…' : '') + '.' });
+
+  products.filter(p => !p.isComposite && p.status === 'active').forEach(p => {
+    const soldLast14 = sales.filter(s => (now - new Date(s.date)) / 86400000 <= 14 && s.status !== 'refunded').reduce((a, s) => a + s.items.filter(it => it.productId === p.id).reduce((b, it) => b + it.qty, 0), 0);
+    const avgDaily = soldLast14 / 14;
+    if (avgDaily > 0) {
+      const daysLeft = p.stock / avgDaily;
+      if (daysLeft <= 4 && p.stock > 0) insights.push({ tone: 'bad', text: p.name + ' may run out within ' + Math.max(1, Math.round(daysLeft)) + ' day' + (Math.round(daysLeft) !== 1 ? 's' : '') + ' at its current sales pace.' });
+    }
+  });
+
+  const todayRefunds = sales.filter(s => dayKey(s.date) === dayKey(now.toISOString()) && s.status === 'refunded').length;
+  const avgDailyRefunds = sales.filter(s => s.status === 'refunded' && (now - new Date(s.date)) / 86400000 <= 14).length / 14;
+  if (todayRefunds >= 2 && avgDailyRefunds > 0 && todayRefunds > avgDailyRefunds * 2) {
+    insights.push({ tone: 'bad', text: 'Refund activity is unusually high today: ' + todayRefunds + ' refund' + (todayRefunds !== 1 ? 's' : '') + ' vs a daily average of ' + avgDailyRefunds.toFixed(1) + '.' });
+  }
+
+  const todayDiscounted = sales.filter(s => dayKey(s.date) === dayKey(now.toISOString()) && (s.discountPct || 0) > 0);
+  const avgTodayDiscount = todayDiscounted.length ? todayDiscounted.reduce((a, s) => a + (s.discountPct || 0), 0) / todayDiscounted.length : 0;
+  const historicalDiscounted = sales.filter(s => (s.discountPct || 0) > 0 && dayKey(s.date) !== dayKey(now.toISOString()));
+  const avgHistoricalDiscount = historicalDiscounted.length ? historicalDiscounted.reduce((a, s) => a + (s.discountPct || 0), 0) / historicalDiscounted.length : 0;
+  if (avgTodayDiscount > 0 && avgHistoricalDiscount > 0 && avgTodayDiscount > avgHistoricalDiscount * 1.5) {
+    insights.push({ tone: 'warn', text: "Today's average discount (" + avgTodayDiscount.toFixed(0) + '%) is notably higher than the usual ' + avgHistoricalDiscount.toFixed(0) + '%.' });
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-brass-light text-brass-dark text-xs rounded-lg px-4 py-2.5 flex items-start gap-2">
+        <IconAlert size={14} className="mt-0.5 shrink-0" />
+        These insights are calculated directly from your recorded sales and inventory data — nothing here is generated or guessed.
+      </div>
+      {insights.length === 0 ? (
+        <Card><p className="text-sm text-ink-muted text-center py-6">Not enough data yet to surface meaningful insights. Insights will appear here as more sales are recorded.</p></Card>
+      ) : (
+        <div className="space-y-2.5">
+          {insights.map((ins, i) => (
+            <div key={i} className={'flex items-start gap-2.5 px-4 py-3 rounded-lg text-sm ' + (ins.tone === 'good' ? 'bg-moss-light text-moss' : ins.tone === 'bad' ? 'bg-clay-light text-clay' : 'bg-brass-light text-brass-dark')}>
+              {ins.tone === 'good' ? <IconArrowUp size={15} className="mt-0.5 shrink-0"/> : <IconAlert size={15} className="mt-0.5 shrink-0"/>}
+              <span>{ins.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Settings({ state, actions, ctx }) {
   const { business, settings } = state;
@@ -2780,7 +3622,7 @@ function Settings({ state, actions, ctx }) {
 
   const tabs = [['business','Business'],['appearance','Appearance'],['payments','Payments'],['modules','Modules'],['receipt','Receipt']];
 
-  const saveBusiness = () => { actions.updateBusiness(biz); ctx.toast('Business settings saved.', 'good'); };
+  const saveBusiness = () => { actions.updateBusiness(biz); ctx.logActivity(ctx.currentEmployee?.name, 'Changed business settings', 'settings', biz.name, 'success', ''); ctx.toast('Business settings saved.', 'good'); };
 
   return (
     <div className="flex flex-col md:flex-row gap-5">
@@ -2844,13 +3686,13 @@ function Settings({ state, actions, ctx }) {
               {settings.paymentMethods.map(m => (
                 <div key={m} className="flex items-center justify-between px-3 py-2 border border-line rounded-md">
                   <span className="text-sm">{m}</span>
-                  <button onClick={() => actions.removePaymentMethod(m)} className="text-ink-muted hover:text-clay"><IconTrash size={14}/></button>
+                  <button onClick={() => { actions.removePaymentMethod(m); ctx.logActivity(ctx.currentEmployee?.name, 'Removed payment method', 'settings', m, 'success', ''); }} className="text-ink-muted hover:text-clay"><IconTrash size={14}/></button>
                 </div>
               ))}
             </div>
             <div className="flex gap-2">
               <input value={newMethod} onChange={e => setNewMethod(e.target.value)} placeholder="e.g. M-Pesa, PayPal, Store Credit" className="flex-1 px-3 py-2 rounded-md border border-line text-sm" />
-              <Button variant="outline" onClick={() => { if (newMethod.trim()) { actions.addPaymentMethod(newMethod.trim()); setNewMethod(''); } }}>Add</Button>
+              <Button variant="outline" onClick={() => { if (newMethod.trim()) { actions.addPaymentMethod(newMethod.trim()); ctx.logActivity(ctx.currentEmployee?.name, 'Added payment method', 'settings', newMethod.trim(), 'success', ''); setNewMethod(''); } }}>Add</Button>
             </div>
           </Card>
         )}
@@ -2858,14 +3700,17 @@ function Settings({ state, actions, ctx }) {
         {tab === 'modules' && (
           <Card title="Modules" subtitle="Show or hide modules in the sidebar based on what your business needs.">
             <div className="space-y-1">
-              {Object.entries(settings.enabledModules).map(([mod, on]) => (
-                <div key={mod} className="flex items-center justify-between px-1 py-2.5 border-b border-line last:border-0">
-                  <span className="text-sm capitalize">{mod}</span>
-                  <button onClick={() => actions.toggleModule(mod)} className={'w-11 h-6 rounded-full transition-colors relative ' + (on ? 'bg-ink' : 'bg-line')}>
-                    <span className={'absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ' + (on ? 'translate-x-5' : 'translate-x-0.5')} />
-                  </button>
-                </div>
-              ))}
+              {MODULE_DEFS.map(m => {
+                const on = !!settings.enabledModules[m.key];
+                return (
+                  <div key={m.key} className="flex items-center justify-between px-1 py-2.5 border-b border-line last:border-0">
+                    <span className="text-sm">{m.label}</span>
+                    <button onClick={() => { actions.toggleModule(m.key); ctx.logActivity(ctx.currentEmployee?.name, (on ? 'Disabled' : 'Enabled') + ' module', 'settings', m.label, 'success', ''); }} className={'w-11 h-6 rounded-full transition-colors relative ' + (on ? 'bg-ink' : 'bg-line')}>
+                      <span className={'absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ' + (on ? 'translate-x-5' : 'translate-x-0.5')} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </Card>
         )}
@@ -2893,6 +3738,7 @@ function App() {
   const [dark, setDark] = useState(false);
   const [page, setPage] = useState('dashboard');
   const [currentEmployeeId, setCurrentEmployeeId] = useState(null);
+  const [activeBranchId, setActiveBranchId] = useState('branch_main');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -2911,13 +3757,41 @@ function App() {
   const [branches, setBranches] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [failedLogins, setFailedLogins] = useState([]);
+  const [loyaltySettings, setLoyaltySettings] = useState({ pointsPerCurrencyUnit: 1, currencyUnitsPerPoint: 10, redemptionRate: 100, tiers: [{ name: 'Bronze', threshold: 0 }, { name: 'Silver', threshold: 200 }, { name: 'Gold', threshold: 600 }] });
+  const [coupons, setCoupons] = useState([]);
+  const [tables, setTables] = useState([]);
+  const [registerSessions, setRegisterSessions] = useState([]);
+  const [pendingSyncSales, setPendingSyncSales] = useState([]);
+  const [online, setOnline] = useState(navigator.onLine);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [dashboardPrefs, setDashboardPrefs] = useState({
+    order: ['stats','trendRow','recentRow'],
+    hidden: [],
+  });
   const [settings, setSettings] = useState({
     paymentMethods: ['Cash', 'Card', 'Mobile Money'],
-    enabledModules: { pos: true, inventory: true, purchasing: true, customers: true, employees: true, expenses: true, reports: true },
+    enabledModules: { pos: true, inventory: true, purchasing: true, customers: true, employees: true, expenses: true, reports: true, cash_register: true, loyalty: true, restaurant: false },
     receiptTemplate: 'Professional',
   });
 
   useEffect(() => { document.body.classList.toggle('dark-mode', dark); }, [dark]);
+
+  useEffect(() => {
+    const goOnline = () => setOnline(true);
+    const goOffline = () => setOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen(p => !p); }
+      if (e.key === 'Escape') setPaletteOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const toast = useCallback((message, tone = 'good') => {
     const id = uid('toast');
@@ -2945,6 +3819,7 @@ function App() {
       setExpenses(seed.expenses); setPurchases(seed.purchases);
       setSettings(s => ({ ...s, paymentMethods: seed.paymentMethods }));
       setRoles(seed.roles); setDepartments(seed.departments); setBranches(seed.branches);
+      setLoyaltySettings(seed.loyaltySettings); setCoupons(seed.coupons); setTables(seed.tables); setRegisterSessions(seed.registerSessions);
       setAuditLogs(seed.auditLogs); setFailedLogins(seed.failedLogins);
       setCurrentEmployeeId(hashedEmployees[0].id);
     } else {
@@ -2962,15 +3837,41 @@ function App() {
 
   const actions = {
     recordSale: (sale) => {
+      sale = { ...sale, branchId: sale.branchId || activeBranchId };
       setSales(s => [sale, ...s]);
       setProducts(prods => prods.map(p => {
         const item = sale.items.find(i => i.productId === p.id);
         if (!item) return p;
+        if (item.variantId) {
+          const variant = (p.variants || []).find(v => v.id === item.variantId);
+          if (!variant) return p;
+          const prev = variant.stock; const next = Math.max(0, variant.stock - item.qty);
+          setInventoryMovements(m => [{ id: uid('mov'), date: sale.date, productId: p.id, productName: p.name + ' (' + variant.name + ')', type: 'sale', qtyChange: -item.qty, prevQty: prev, newQty: next, reason: 'Sale ' + sale.id.slice(-6), ref: sale.id, user: sale.employeeName }, ...m]);
+          return { ...p, variants: p.variants.map(v => v.id === variant.id ? { ...v, stock: next } : v) };
+        }
+        if (p.isComposite) return p; // components are deducted separately below
         const prev = p.stock; const next = Math.max(0, p.stock - item.qty);
         setInventoryMovements(m => [{ id: uid('mov'), date: sale.date, productId: p.id, productName: p.name, type: 'sale', qtyChange: -item.qty, prevQty: prev, newQty: next, reason: 'Sale ' + sale.id.slice(-6), ref: sale.id, user: sale.employeeName }, ...m]);
         return { ...p, stock: next };
       }));
-      if (sale.customerId) setCustomers(cs => cs.map(c => c.id === sale.customerId ? { ...c, totalSpent: c.totalSpent + sale.total } : c));
+      // Deduct recipe/bundle ingredients for any composite items sold.
+      sale.items.forEach(item => {
+        const parent = products.find(p => p.id === item.productId);
+        if (parent && parent.isComposite) {
+          setProducts(prods => prods.map(p => {
+            const comp = parent.components.find(c => c.productId === p.id);
+            if (!comp) return p;
+            const deduction = comp.qty * item.qty;
+            const prev = p.stock; const next = Math.max(0, p.stock - deduction);
+            setInventoryMovements(m => [{ id: uid('mov'), date: sale.date, productId: p.id, productName: p.name, type: 'sale', qtyChange: -deduction, prevQty: prev, newQty: next, reason: 'Recipe: ' + parent.name + ' × ' + item.qty, ref: sale.id, user: sale.employeeName }, ...m]);
+            return { ...p, stock: next };
+          }));
+        }
+      });
+      if (sale.customerId) setCustomers(cs => cs.map(c => c.id === sale.customerId ? {
+        ...c, totalSpent: c.totalSpent + sale.total,
+        loyaltyPoints: Math.max(0, (c.loyaltyPoints || 0) + (sale.pointsEarned || 0) - (sale.pointsRedeemed || 0)),
+      } : c));
     },
     refundSale: (saleId) => {
       setSales(ss => ss.map(s => s.id === saleId ? { ...s, status: 'refunded' } : s));
@@ -2979,11 +3880,35 @@ function App() {
       setProducts(prods => prods.map(p => {
         const item = sale.items.find(i => i.productId === p.id);
         if (!item) return p;
+        if (item.variantId) {
+          const variant = (p.variants || []).find(v => v.id === item.variantId);
+          if (!variant) return p;
+          const prev = variant.stock; const next = variant.stock + item.qty;
+          setInventoryMovements(m => [{ id: uid('mov'), date: new Date().toISOString(), productId: p.id, productName: p.name + ' (' + variant.name + ')', type: 'return', qtyChange: item.qty, prevQty: prev, newQty: next, reason: 'Refund for sale ' + sale.id.slice(-6), ref: sale.id, user: 'System' }, ...m]);
+          return { ...p, variants: p.variants.map(v => v.id === variant.id ? { ...v, stock: next } : v) };
+        }
+        if (p.isComposite) return p;
         const prev = p.stock; const next = p.stock + item.qty;
         setInventoryMovements(m => [{ id: uid('mov'), date: new Date().toISOString(), productId: p.id, productName: p.name, type: 'return', qtyChange: item.qty, prevQty: prev, newQty: next, reason: 'Refund for sale ' + sale.id.slice(-6), ref: sale.id, user: 'System' }, ...m]);
         return { ...p, stock: next };
       }));
-      if (sale.customerId) setCustomers(cs => cs.map(c => c.id === sale.customerId ? { ...c, totalSpent: Math.max(0, c.totalSpent - sale.total) } : c));
+      sale.items.forEach(item => {
+        const parent = products.find(p => p.id === item.productId);
+        if (parent && parent.isComposite) {
+          setProducts(prods => prods.map(p => {
+            const comp = parent.components.find(c => c.productId === p.id);
+            if (!comp) return p;
+            const restore = comp.qty * item.qty;
+            const prev = p.stock; const next = p.stock + restore;
+            setInventoryMovements(m => [{ id: uid('mov'), date: new Date().toISOString(), productId: p.id, productName: p.name, type: 'return', qtyChange: restore, prevQty: prev, newQty: next, reason: 'Refund restored ingredient for ' + parent.name, ref: sale.id, user: 'System' }, ...m]);
+            return { ...p, stock: next };
+          }));
+        }
+      });
+      if (sale.customerId) setCustomers(cs => cs.map(c => c.id === sale.customerId ? {
+        ...c, totalSpent: Math.max(0, c.totalSpent - sale.total),
+        loyaltyPoints: Math.max(0, (c.loyaltyPoints || 0) - (sale.pointsEarned || 0) + (sale.pointsRedeemed || 0)),
+      } : c));
     },
     addProduct: (p) => setProducts(ps => [...ps, { ...p, id: uid('prod') }]),
     updateProduct: (p) => setProducts(ps => ps.map(x => x.id === p.id ? p : x)),
@@ -3050,13 +3975,58 @@ function App() {
     updateDepartment: (d) => setDepartments(ds => ds.map(x => x.id === d.id ? d : x)),
     addBranch: (name) => setBranches(bs => [...bs, { id: uid('branch'), name }]),
     deleteBranch: (id) => setBranches(bs => bs.filter(b => b.id !== id)),
-    addExpense: (e) => setExpenses(es => [{ ...e, id: uid('exp') }, ...es]),
+    addExpense: (e) => setExpenses(es => [{ ...e, id: uid('exp'), branchId: activeBranchId }, ...es]),
     updateBusiness: (b) => setBusiness(b),
     addPaymentMethod: (m) => setSettings(s => ({ ...s, paymentMethods: [...s.paymentMethods, m] })),
     removePaymentMethod: (m) => setSettings(s => ({ ...s, paymentMethods: s.paymentMethods.filter(x => x !== m) })),
     toggleModule: (mod) => setSettings(s => ({ ...s, enabledModules: { ...s.enabledModules, [mod]: !s.enabledModules[mod] } })),
     setReceiptTemplate: (t) => setSettings(s => ({ ...s, receiptTemplate: t })),
+    openRegister: (openingBalance, byName) => setRegisterSessions(rs => [...rs, { id: uid('reg'), branchId: 'branch_main', openedAt: new Date().toISOString(), closedAt: null, openedBy: byName, closedBy: null, openingBalance, cashIn: [], cashOut: [], expectedClosingBalance: null, actualClosingBalance: null, variance: null, status: 'open' }]),
+    addCashMovement: (dir, amount, note) => setRegisterSessions(rs => rs.map(s => {
+      if (s.status !== 'open') return s;
+      const entry = { amount, note, date: new Date().toISOString() };
+      return dir === 'in' ? { ...s, cashIn: [...s.cashIn, entry] } : { ...s, cashOut: [...s.cashOut, entry] };
+    })),
+    closeRegister: (actual, expected, byName) => setRegisterSessions(rs => rs.map(s => s.status === 'open' ? { ...s, status: 'closed', closedAt: new Date().toISOString(), closedBy: byName, expectedClosingBalance: expected, actualClosingBalance: actual, variance: actual - expected } : s)),
+    updateLoyaltySettings: (f) => setLoyaltySettings(f),
+    addCoupon: (f) => setCoupons(cs => [...cs, { id: uid('cpn'), code: f.code, type: f.type, value: f.value, active: true, usageLimit: f.usageLimit, usedCount: 0 }]),
+    toggleCoupon: (id) => setCoupons(cs => cs.map(c => c.id === id ? { ...c, active: !c.active } : c)),
+    redeemCoupon: (id) => setCoupons(cs => cs.map(c => c.id === id ? { ...c, usedCount: c.usedCount + 1 } : c)),
+    cycleTableStatus: (id) => setTables(ts => ts.map(t => t.id === id ? { ...t, status: TABLE_STATUS_CYCLE[t.status] } : t)),
+    assignTableWaiter: (id, waiterId) => setTables(ts => ts.map(t => t.id === id ? { ...t, waiterId } : t)),
+    setKitchenStatus: (saleId, status) => setSales(ss => ss.map(s => s.id === saleId ? { ...s, kitchenStatus: status } : s)),
+    queueOfflineSale: (payload) => setPendingSyncSales(q => [...q, { ...payload, queueId: uid('offline'), queuedAt: new Date().toISOString() }]),
+    toggleDashboardWidget: (key) => setDashboardPrefs(p => ({ ...p, hidden: p.hidden.includes(key) ? p.hidden.filter(h => h !== key) : [...p.hidden, key] })),
+    moveDashboardWidget: (key, dir) => setDashboardPrefs(p => {
+      const idx = p.order.indexOf(key);
+      const swapWith = idx + dir;
+      if (swapWith < 0 || swapWith >= p.order.length) return p;
+      const next = [...p.order];
+      [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+      return { ...p, order: next };
+    }),
   };
+
+  useEffect(() => {
+    if (!online || pendingSyncSales.length === 0) return;
+    const emp = employees.find(e => e.id === currentEmployeeId) || employees[0];
+    pendingSyncSales.forEach(q => {
+      const cust = customers.find(c => c.id === q.customerId);
+      const sale = {
+        id: uid('sale'), date: q.queuedAt,
+        items: q.cart.map(i => ({ productId: i.productId, variantId: i.variantId || null, name: i.name, qty: i.qty, price: i.price, total: i.price * i.qty })),
+        subtotal: q.subtotal, discount: q.discountAmt, discountPct: q.discount, tax: q.tax, total: q.total,
+        paymentMethod: q.paymentMethod + ' (synced)', splitPayments: q.splitPayments || null,
+        customerId: q.customerId, customerName: cust ? cust.name : 'Walk-in', employeeId: emp?.id, employeeName: emp?.name || 'Unknown', status: 'completed', note: q.note, tableId: q.tableId || null,
+        pointsEarned: 0, pointsRedeemed: 0,
+      };
+      actions.recordSale(sale);
+      logActivity(emp?.name, 'Synced offline sale', 'pos', '#' + sale.id.slice(-6).toUpperCase(), 'success', 'Queued while offline at ' + fmtDateTime(q.queuedAt));
+    });
+    setPendingSyncSales([]);
+    toast(pendingSyncSales.length + ' offline sale' + (pendingSyncSales.length !== 1 ? 's' : '') + ' synced.', 'good');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online]);
 
   const requestApproval = useCallback((permissionId, description, targetLabel) => {
     return new Promise(resolve => {
@@ -3081,15 +4051,26 @@ function App() {
 
   if (!onboarded) return <Onboarding onComplete={handleOnboardComplete} />;
 
-  const currentEmployee = employees.find(e => e.id === currentEmployeeId) || employees[0];
-  const state = { business, products, suppliers, customers, employees, sales, purchases, expenses, inventoryMovements, settings, roles, departments, branches, auditLogs, failedLogins };
-  const ctx = { toast, setPage, dark, setDark, currentEmployee, requestApproval, logActivity };
+  const handleSwitchEmployee = (id) => {
+    const target = employees.find(e => e.id === id);
+    setEmployees(es => es.map(e => e.id === id ? { ...e, lastLogin: new Date().toISOString() } : e));
+    logActivity(target?.name, 'Logged in', 'auth', '', 'success', '');
+    setCurrentEmployeeId(id);
+  };
 
-  const lowStock = products.filter(p => p.stock <= p.reorderLevel);
+  const currentEmployee = employees.find(e => e.id === currentEmployeeId) || employees[0];
+  const state = { business, products, suppliers, customers, employees, sales, purchases, expenses, inventoryMovements, settings, roles, departments, branches, auditLogs, failedLogins, loyaltySettings, coupons, tables, registerSessions, dashboardPrefs };
+  const ctx = { toast, setPage, dark, setDark, currentEmployee, requestApproval, logActivity, activeBranchId, setActiveBranchId };
+
+  const lowStock = products.filter(p => !p.isComposite && p.stock <= p.reorderLevel);
+  const expiringSoon = products.filter(p => p.expiryDate && new Date(p.expiryDate) > new Date() && new Date(p.expiryDate) < new Date(Date.now() + 3 * 86400000));
   const pendingPO = purchases.filter(p => p.status === 'pending');
+  const openRegisterSession = registerSessions.find(r => r.status === 'open');
   const notifications = [
     ...lowStock.slice(0, 5).map(p => ({ message: p.name + ' is at ' + p.stock + ' ' + p.unit + ' — below reorder level.', tone: p.stock <= 0 ? 'bad' : 'warn' })),
+    ...expiringSoon.slice(0, 3).map(p => ({ message: p.name + ' expires ' + fmtDate(p.expiryDate) + '.', tone: 'warn' })),
     ...pendingPO.map(po => ({ message: 'Purchase order from ' + po.supplierName + ' is awaiting receipt.', tone: 'warn' })),
+    ...(pendingSyncSales.length > 0 ? [{ message: pendingSyncSales.length + ' sale(s) queued offline, waiting to sync.', tone: 'warn' }] : []),
   ];
 
   const pageProps = { state, actions, ctx };
@@ -3101,6 +4082,9 @@ function App() {
     customers: settings.enabledModules.customers ? <Customers {...pageProps} /> : <ModuleDisabled name="Customers" />,
     expenses: settings.enabledModules.expenses ? <Expenses {...pageProps} /> : <ModuleDisabled name="Expenses" />,
     reports: settings.enabledModules.reports ? <Reports {...pageProps} /> : <ModuleDisabled name="Reports" />,
+    register: settings.enabledModules.cash_register ? <CashRegister {...pageProps} /> : <ModuleDisabled name="Cash Register" />,
+    loyalty: settings.enabledModules.loyalty ? <Loyalty {...pageProps} /> : <ModuleDisabled name="Loyalty" />,
+    restaurant: settings.enabledModules.restaurant ? <Restaurant {...pageProps} /> : <ModuleDisabled name="Restaurant" />,
     employees: <Employees {...pageProps} />,
     roles: <RolesPermissions {...pageProps} />,
     departments: <Departments {...pageProps} />,
@@ -3110,7 +4094,7 @@ function App() {
     settings: <Settings {...pageProps} />,
   };
 
-  const allNav = [...NAV_ITEMS, ...ADMIN_NAV_ITEMS];
+  const allNav = [...NAV_ITEMS, ...OPERATIONS_NAV_ITEMS, ...ADMIN_NAV_ITEMS];
   const activeNav = allNav.find(n => n.key === page);
   const allowedPage = activeNav && (!activeNav.perm || can(currentEmployee, roles, activeNav.perm)) ? page : 'dashboard';
 
@@ -3118,7 +4102,7 @@ function App() {
     <div className="min-h-screen flex bg-paper text-ink">
       <Sidebar page={allowedPage} setPage={setPage} business={business} enabledModules={settings.enabledModules} currentEmployee={currentEmployee} roles={roles} collapsed={collapsed} setCollapsed={setCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar business={business} currentEmployee={currentEmployee} employees={employees} setCurrentEmployeeId={setCurrentEmployeeId} roles={roles} dark={dark} setDark={setDark} setMobileOpen={setMobileOpen} notifications={notifications} page={allowedPage} allNav={allNav} />
+        <Topbar business={business} currentEmployee={currentEmployee} employees={employees} setCurrentEmployeeId={handleSwitchEmployee} roles={roles} dark={dark} setDark={setDark} setMobileOpen={setMobileOpen} notifications={notifications} page={allowedPage} allNav={allNav} onOpenPalette={() => setPaletteOpen(true)} online={online} branches={branches} activeBranchId={activeBranchId} setActiveBranchId={setActiveBranchId} />
         <EmployeeBanner employee={currentEmployee} roles={roles} />
         <main className="flex-1 p-4 md:p-6 rise-in">
           {pages[allowedPage]}
@@ -3127,6 +4111,7 @@ function App() {
       <Toast toasts={toasts} />
       <ManagerApprovalModal approval={approval} employees={employees} roles={roles}
         onApprove={handleApprove} onCancel={handleCancelApproval} onFailedAttempt={handleFailedApproval} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} allNav={allNav} state={state} setPage={setPage} />
     </div>
   );
 }
