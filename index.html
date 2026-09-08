@@ -16,12 +16,13 @@
     theme: {
       extend: {
         colors: {
-          ink: { DEFAULT: '#16241D', soft: '#2C3B32', muted: '#57645B' },
-          paper: { DEFAULT: '#F5F6F1', raised: '#FFFFFF', dim: '#ECEEE6' },
-          brass: { DEFAULT: '#C08829', dark: '#9C6D1E', light: '#F0D9A6' },
-          moss: { DEFAULT: '#2F7A54', light: '#DCEFE3' },
-          clay: { DEFAULT: '#B5432E', light: '#F5DCD6' },
-          line: '#DEE2D7',
+          ink: { DEFAULT: 'var(--ink)', soft: 'var(--ink-soft)', muted: 'var(--ink-muted)' },
+          paper: { DEFAULT: 'var(--paper)', raised: 'var(--paper-raised)', dim: 'var(--paper-dim)' },
+          brass: { DEFAULT: 'var(--brass)', dark: 'var(--brass-dark)', light: 'var(--brass-light)' },
+          moss: { DEFAULT: 'var(--moss)', light: 'var(--moss-light)' },
+          clay: { DEFAULT: 'var(--clay)', light: 'var(--clay-light)' },
+          line: 'var(--line)',
+          chrome: { DEFAULT: 'var(--chrome-bg)', fg: 'var(--chrome-fg)' },
         },
         fontFamily: {
           display: ['Fraunces', 'serif'],
@@ -33,8 +34,25 @@
   };
 </script>
 <style>
-  html, body { background: #F5F6F1; }
-  body.dark-mode { background: #12180F; }
+  :root {
+    --paper: #F5F6F1; --paper-raised: #FFFFFF; --paper-dim: #ECEEE6;
+    --ink: #16241D; --ink-soft: #2C3B32; --ink-muted: #57645B;
+    --line: #DEE2D7;
+    --brass: #C08829; --brass-dark: #9C6D1E; --brass-light: #F0D9A6;
+    --moss: #2F7A54; --moss-light: #DCEFE3;
+    --clay: #B5432E; --clay-light: #F5DCD6;
+    --chrome-bg: #16241D; --chrome-fg: #F5F6F1;
+  }
+  body.dark-mode {
+    --paper: #12160F; --paper-raised: #1B2417; --paper-dim: #202B1B;
+    --ink: #EDF1E9; --ink-soft: #D3DACB; --ink-muted: #8A9683;
+    --line: #33402C;
+    --brass: #D9A245; --brass-dark: #E0B25C; --brass-light: rgba(217,162,69,0.16);
+    --moss: #57B784; --moss-light: rgba(87,183,132,0.16);
+    --clay: #E27158; --clay-light: rgba(226,113,88,0.16);
+    /* --chrome-bg / --chrome-fg intentionally unchanged: the sidebar stays the same dark rail in both themes. */
+  }
+  html, body { background: var(--paper); }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-thumb { background: #C7CDBE; border-radius: 4px; }
   .dark-mode ::-webkit-scrollbar-thumb { background: #3A4636; }
@@ -182,9 +200,9 @@ function Button({ children, variant = 'primary', size = 'md', className = '', ic
   const base = 'inline-flex items-center justify-center gap-1.5 font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap';
   const sizes = { sm: 'px-2.5 py-1.5 text-sm', md: 'px-3.5 py-2 text-sm', lg: 'px-5 py-2.5 text-[15px]' };
   const variants = {
-    primary: 'bg-ink text-paper hover:bg-ink-soft dark-mode:bg-brass dark-mode:text-ink',
+    primary: 'bg-ink text-paper hover:bg-ink-soft',
     brass: 'bg-brass text-white hover:bg-brass-dark',
-    outline: 'border border-line text-ink hover:bg-paper-dim bg-white',
+    outline: 'border border-line text-ink hover:bg-paper-dim bg-paper-raised',
     ghost: 'text-ink-muted hover:bg-paper-dim',
     danger: 'bg-clay text-white hover:bg-clay/90',
     subtle: 'bg-paper-dim text-ink hover:bg-line',
@@ -228,7 +246,7 @@ function Input({ label, hint, className = '', ...rest }) {
   return (
     <label className="block">
       {label && <span className="block text-xs font-medium text-ink-muted mb-1">{label}</span>}
-      <input className={'w-full px-3 py-2 rounded-md border border-line bg-white text-sm text-ink placeholder:text-ink-muted/60 ' + className} {...rest} />
+      <input className={'w-full px-3 py-2 rounded-md border border-line bg-paper-raised text-sm text-ink placeholder:text-ink-muted/60 ' + className} {...rest} />
       {hint && <span className="block text-xs text-ink-muted mt-1">{hint}</span>}
     </label>
   );
@@ -238,7 +256,7 @@ function Select({ label, options, className = '', ...rest }) {
   return (
     <label className="block">
       {label && <span className="block text-xs font-medium text-ink-muted mb-1">{label}</span>}
-      <select className={'w-full px-3 py-2 rounded-md border border-line bg-white text-sm text-ink ' + className} {...rest}>
+      <select className={'w-full px-3 py-2 rounded-md border border-line bg-paper-raised text-sm text-ink ' + className} {...rest}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </label>
@@ -249,7 +267,7 @@ function Textarea({ label, className = '', ...rest }) {
   return (
     <label className="block">
       {label && <span className="block text-xs font-medium text-ink-muted mb-1">{label}</span>}
-      <textarea className={'w-full px-3 py-2 rounded-md border border-line bg-white text-sm text-ink ' + className} {...rest} />
+      <textarea className={'w-full px-3 py-2 rounded-md border border-line bg-paper-raised text-sm text-ink ' + className} {...rest} />
     </label>
   );
 }
@@ -258,7 +276,7 @@ function Modal({ open, onClose, title, children, width = 'max-w-lg', footer }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ink/40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={onClose} />
       <div className={'relative bg-paper-raised rounded-xl border border-line shadow-2xl w-full ' + width + ' max-h-[88vh] flex flex-col rise-in'}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-line">
           <h3 className="font-display text-lg font-medium">{title}</h3>
@@ -318,7 +336,7 @@ function StatCard({ label, value, delta, deltaGood, sub }) {
 }
 
 /* Small inline SVG bar chart, dependency-free */
-function BarChart({ data, height = 160, formatValue, barColor = '#16241D' }) {
+function BarChart({ data, height = 160, formatValue, barColor = 'var(--ink)' }) {
   const max = Math.max(1, ...data.map(d => d.value));
   const w = 100 / data.length;
   return (
@@ -340,7 +358,7 @@ function BarChart({ data, height = 160, formatValue, barColor = '#16241D' }) {
   );
 }
 
-function HBarList({ data, formatValue, color = '#C08829' }) {
+function HBarList({ data, formatValue, color = 'var(--brass)' }) {
   const max = Math.max(1, ...data.map(d => d.value));
   return (
     <div className="space-y-2.5">
@@ -952,7 +970,7 @@ function Sidebar({ page, setPage, business, enabledModules, currentEmployee, rol
     return (
       <button key={item.key} onClick={() => { setPage(item.key); setMobileOpen(false); }}
         className={'w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm transition-colors ' +
-          (active ? 'bg-paper text-ink font-medium' : 'text-paper/75 hover:bg-white/10')}>
+          (active ? 'bg-chrome-fg text-chrome font-medium' : 'text-chrome-fg/75 hover:bg-white/10')}>
         <Ico size={18} />
         {!collapsed && <span className="truncate">{item.label}</span>}
       </button>
@@ -960,11 +978,11 @@ function Sidebar({ page, setPage, business, enabledModules, currentEmployee, rol
   };
   return (
     <>
-      {mobileOpen && <div className="fixed inset-0 bg-ink/40 z-30 md:hidden" onClick={() => setMobileOpen(false)} />}
-      <aside className={'fixed md:sticky top-0 h-screen z-40 bg-ink text-paper flex flex-col shrink-0 transition-all duration-200 ' +
+      {mobileOpen && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setMobileOpen(false)} />}
+      <aside className={'fixed md:sticky top-0 h-screen z-40 bg-chrome text-chrome-fg flex flex-col shrink-0 transition-all duration-200 ' +
         (collapsed ? 'w-[72px]' : 'w-[240px]') + ' ' + (mobileOpen ? 'left-0' : '-left-full md:left-0')}>
         <div className="flex items-center gap-2.5 px-4 h-16 border-b border-white/10 shrink-0">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-ink font-display font-semibold shrink-0" style={{ background: business.primaryColor || '#C08829' }}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-chrome font-display font-semibold shrink-0" style={{ background: business.primaryColor || '#C08829' }}>
             {initials(business.name) || 'B'}
           </div>
           {!collapsed && <span className="font-display font-medium truncate">{business.name}</span>}
@@ -973,20 +991,20 @@ function Sidebar({ page, setPage, business, enabledModules, currentEmployee, rol
           {mainItems.map(NavButton)}
           {opsItems.length > 0 && (
             <>
-              {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-wider text-paper/40 px-2.5 pt-4 pb-1.5">Operations</p>}
+              {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-wider text-chrome-fg/40 px-2.5 pt-4 pb-1.5">Operations</p>}
               {collapsed && <div className="h-px bg-white/10 mx-2 my-3" />}
               {opsItems.map(NavButton)}
             </>
           )}
           {adminItems.length > 0 && (
             <>
-              {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-wider text-paper/40 px-2.5 pt-4 pb-1.5">Admin</p>}
+              {!collapsed && <p className="text-[10px] font-semibold uppercase tracking-wider text-chrome-fg/40 px-2.5 pt-4 pb-1.5">Admin</p>}
               {collapsed && <div className="h-px bg-white/10 mx-2 my-3" />}
               {adminItems.map(NavButton)}
             </>
           )}
         </nav>
-        <button onClick={() => setCollapsed(c => !c)} className="hidden md:flex items-center justify-center py-3 border-t border-white/10 text-paper/60 hover:text-paper hover:bg-white/5">
+        <button onClick={() => setCollapsed(c => !c)} className="hidden md:flex items-center justify-center py-3 border-t border-white/10 text-chrome-fg/60 hover:text-chrome-fg hover:bg-white/5">
           <IconChevronRight size={16} className={collapsed ? '' : 'rotate-180'} style={{ transition: 'transform .2s' }} />
         </button>
       </aside>
@@ -1022,12 +1040,12 @@ function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, ro
           <h1 className="font-display text-lg font-medium leading-none">{pageLabel}</h1>
         </div>
         {showBranchSelector && (
-          <select value={activeBranchId} onChange={e => setActiveBranchId(e.target.value)} className="ml-2 text-xs border border-line rounded-md px-2 py-1.5 bg-white">
+          <select value={activeBranchId} onChange={e => setActiveBranchId(e.target.value)} className="ml-2 text-xs border border-line rounded-md px-2 py-1.5 bg-paper-raised">
             {employeeBranches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         )}
         <div className="flex-1" />
-        <button onClick={onOpenPalette} className="hidden md:flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 w-64 text-ink-muted hover:border-ink/30">
+        <button onClick={onOpenPalette} className="hidden md:flex items-center gap-2 bg-paper-raised border border-line rounded-md px-3 py-1.5 w-64 text-ink-muted hover:border-ink/30">
           <IconSearch size={15} />
           <span className="text-sm flex-1 text-left">Search anything…</span>
           <span className="text-[10px] border border-line rounded px-1 py-0.5 text-ink-muted/70">⌘K</span>
@@ -1045,7 +1063,7 @@ function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, ro
             {notifications.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-clay" />}
           </button>
           {showNotif && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border border-line rounded-lg shadow-xl p-2 rise-in max-h-96 overflow-y-auto">
+            <div className="absolute right-0 mt-2 w-80 bg-paper-raised border border-line rounded-lg shadow-xl p-2 rise-in max-h-96 overflow-y-auto">
               <p className="text-xs font-semibold text-ink-muted px-2 py-1.5">Notifications</p>
               {notifications.length === 0 && <p className="text-sm text-ink-muted px-2 py-4 text-center">You're all caught up.</p>}
               {notifications.map((n, i) => (
@@ -1063,7 +1081,7 @@ function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, ro
             <IconChevronDown size={14} className="text-ink-muted hidden sm:block" />
           </button>
           {showEmp && (
-            <div className="absolute right-0 mt-2 w-64 bg-white border border-line rounded-lg shadow-xl p-1.5 rise-in max-h-80 overflow-y-auto">
+            <div className="absolute right-0 mt-2 w-64 bg-paper-raised border border-line rounded-lg shadow-xl p-1.5 rise-in max-h-80 overflow-y-auto">
               <p className="text-xs font-semibold text-ink-muted px-2.5 py-1.5">Logged in as</p>
               {activeEmployees.map(e => {
                 const role = roles.find(r => r.id === e.roleId);
@@ -1101,7 +1119,7 @@ function CommandPalette({ open, onClose, allNav, state, setPage }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-4">
-      <div className="absolute inset-0 bg-ink/40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={onClose} />
       <div className="relative bg-paper-raised rounded-xl border border-line shadow-2xl w-full max-w-lg max-h-[70vh] flex flex-col rise-in">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-line">
           <IconSearch size={16} className="text-ink-muted" />
@@ -1281,9 +1299,9 @@ function Dashboard({ state, ctx, actions }) {
               <div key={key} className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-paper-dim">
                 <span className="text-sm">{WIDGET_LABELS[key]}</span>
                 <div className="flex items-center gap-1">
-                  <button disabled={i === 0} onClick={() => actions.moveDashboardWidget(key, -1)} className="p-1 rounded hover:bg-white disabled:opacity-30"><IconArrowUp size={14}/></button>
-                  <button disabled={i === dashboardPrefs.order.length - 1} onClick={() => actions.moveDashboardWidget(key, 1)} className="p-1 rounded hover:bg-white disabled:opacity-30"><IconArrowDown size={14}/></button>
-                  <button onClick={() => actions.toggleDashboardWidget(key)} className={'w-9 h-5 rounded-full transition-colors relative ml-2 ' + (!dashboardPrefs.hidden.includes(key) ? 'bg-ink' : 'bg-line')}>
+                  <button disabled={i === 0} onClick={() => actions.moveDashboardWidget(key, -1)} className="p-1 rounded hover:bg-paper-dim disabled:opacity-30"><IconArrowUp size={14}/></button>
+                  <button disabled={i === dashboardPrefs.order.length - 1} onClick={() => actions.moveDashboardWidget(key, 1)} className="p-1 rounded hover:bg-paper-dim disabled:opacity-30"><IconArrowDown size={14}/></button>
+                  <button onClick={() => actions.toggleDashboardWidget(key)} className={'w-9 h-5 rounded-full transition-colors relative ml-2 ' + (!dashboardPrefs.hidden.includes(key) ? 'bg-brass' : 'bg-line')}>
                     <span className={'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ' + (!dashboardPrefs.hidden.includes(key) ? 'translate-x-4' : 'translate-x-0.5')} />
                   </button>
                 </div>
@@ -1464,7 +1482,7 @@ function POS({ state, actions, ctx }) {
     <div className="flex flex-col lg:flex-row gap-5 -mx-1">
       <div className="flex-1 px-1">
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
-          <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-2 flex-1">
+          <div className="flex items-center gap-2 bg-paper-raised border border-line rounded-md px-3 py-2 flex-1">
             <IconSearch size={16} className="text-ink-muted" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search or scan barcode…" className="bg-transparent outline-none text-sm w-full" />
           </div>
@@ -1481,7 +1499,7 @@ function POS({ state, actions, ctx }) {
         </div>
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
           {categories.map(c => (
-            <button key={c} onClick={() => setCategory(c)} className={'shrink-0 px-3 py-1.5 rounded-full text-sm border ' + (category === c ? 'bg-ink text-paper border-ink' : 'border-line text-ink-muted bg-white')}>{c}</button>
+            <button key={c} onClick={() => setCategory(c)} className={'shrink-0 px-3 py-1.5 rounded-full text-sm border ' + (category === c ? 'bg-ink text-paper border-ink' : 'border-line text-ink-muted bg-paper-raised')}>{c}</button>
           ))}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -1489,7 +1507,7 @@ function POS({ state, actions, ctx }) {
             const avail = effectiveStock(p, products);
             return (
               <button key={p.id} onClick={() => addToCart(p)} disabled={avail <= 0}
-                className="text-left bg-white border border-line rounded-lg p-3 hover:border-ink transition-colors disabled:opacity-40 disabled:cursor-not-allowed relative">
+                className="text-left bg-paper-raised border border-line rounded-lg p-3 hover:border-ink transition-colors disabled:opacity-40 disabled:cursor-not-allowed relative">
                 {avail <= p.reorderLevel && avail > 0 && <span className="absolute top-2 right-2"><Badge tone="warn">Low</Badge></span>}
                 {avail <= 0 && <span className="absolute top-2 right-2"><Badge tone="bad">Out</Badge></span>}
                 {p.variants && p.variants.length > 0 && <span className="absolute top-2 left-2"><Badge tone="default">Variants</Badge></span>}
@@ -1506,7 +1524,7 @@ function POS({ state, actions, ctx }) {
       </div>
 
       <div className="w-full lg:w-[360px] shrink-0">
-        <div className="bg-white border border-line rounded-xl flex flex-col sticky top-20 max-h-[calc(100vh-6rem)]">
+        <div className="bg-paper-raised border border-line rounded-xl flex flex-col sticky top-20 max-h-[calc(100vh-6rem)]">
           <div className="px-4 py-3 border-b border-line flex items-center justify-between">
             <h3 className="font-display font-medium">Current order</h3>
             {cart.length > 0 && <button onClick={() => setCart([])} className="text-xs text-clay">Clear</button>}
@@ -1822,7 +1840,7 @@ function Products({ state, actions, ctx }) {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 bg-paper-dim rounded-lg p-1">
           {[['products','Products'],['alerts','Stock Alerts ('+lowStock.length+')'],['movements','Movement History']].map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-paper-raised shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
           ))}
         </div>
         {tab === 'products' && canCreate && <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setModal({ mode: 'add' })}>Add product</Button>}
@@ -1831,7 +1849,7 @@ function Products({ state, actions, ctx }) {
       {tab === 'products' && (
         <Card padded={false}>
           <div className="p-4 border-b border-line flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 flex-1 max-w-xs">
+            <div className="flex items-center gap-2 bg-paper-raised border border-line rounded-md px-3 py-1.5 flex-1 max-w-xs">
               <IconSearch size={14} className="text-ink-muted" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products…" className="bg-transparent outline-none text-sm w-full" />
             </div>
@@ -1990,7 +2008,7 @@ function Purchases({ state, actions, ctx }) {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 bg-paper-dim rounded-lg p-1">
           {[['purchases','Purchase Orders'],['suppliers','Suppliers']].map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-paper-raised shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
           ))}
         </div>
         {tab === 'purchases' ? <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setPoModal(true)}>New purchase order</Button>
@@ -2134,7 +2152,7 @@ function Customers({ state, actions, ctx }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 max-w-xs w-full">
+        <div className="flex items-center gap-2 bg-paper-raised border border-line rounded-md px-3 py-1.5 max-w-xs w-full">
           <IconSearch size={14} className="text-ink-muted" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers…" className="bg-transparent outline-none text-sm w-full" />
         </div>
@@ -2375,7 +2393,7 @@ function Loyalty({ state, actions, ctx }) {
     <div>
       <div className="flex gap-1 bg-paper-dim rounded-lg p-1 mb-4 w-fit">
         {[['overview','Overview'],['coupons','Coupons'],['settings','Program Settings']].map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-paper-raised shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
         ))}
       </div>
 
@@ -2489,7 +2507,7 @@ function Restaurant({ state, actions, ctx }) {
     <div>
       <div className="flex gap-1 bg-paper-dim rounded-lg p-1 mb-4 w-fit">
         {[['tables','Tables'],['kitchen','Kitchen Display'],['recipes','Recipes']].map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-paper-raised shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
         ))}
       </div>
 
@@ -2958,7 +2976,7 @@ function Employees({ state, actions, ctx }) {
         <StatCard label="Departments" value={departments.length} />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 max-w-xs w-full">
+        <div className="flex items-center gap-2 bg-paper-raised border border-line rounded-md px-3 py-1.5 max-w-xs w-full">
           <IconSearch size={14} className="text-ink-muted" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employees…" className="bg-transparent outline-none text-sm w-full" />
         </div>
@@ -3029,7 +3047,7 @@ function RoleEditor({ initial, onCancel, onSave }) {
     <div className="space-y-3">
       <Input label="Role name" value={f.name} onChange={e => setF(x => ({ ...x, name: e.target.value }))} placeholder="e.g. Senior Cashier" />
       <Textarea label="Description" rows="2" value={f.description} onChange={e => setF(x => ({ ...x, description: e.target.value }))} />
-      <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5">
+      <div className="flex items-center gap-2 bg-paper-raised border border-line rounded-md px-3 py-1.5">
         <IconSearch size={14} className="text-ink-muted" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search permissions…" className="bg-transparent outline-none text-sm w-full" />
       </div>
@@ -3070,7 +3088,7 @@ function RolesPermissions({ state, actions, ctx }) {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 bg-paper-dim rounded-lg p-1">
           {[['roles','Roles'],['matrix','Permission Matrix']].map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+            <button key={k} onClick={() => setTab(k)} className={'px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-paper-raised shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
           ))}
         </div>
         {tab === 'roles' && canManage && <Button variant="primary" icon={<IconPlus size={15}/>} onClick={() => setEditor({ mode: 'add' })}>Create role</Button>}
@@ -3265,11 +3283,11 @@ function ActivityLog({ state }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex items-center gap-2 bg-white border border-line rounded-md px-3 py-1.5 flex-1 max-w-xs">
+        <div className="flex items-center gap-2 bg-paper-raised border border-line rounded-md px-3 py-1.5 flex-1 max-w-xs">
           <IconSearch size={14} className="text-ink-muted" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search activity…" className="bg-transparent outline-none text-sm w-full" />
         </div>
-        <select value={moduleFilter} onChange={e => setModuleFilter(e.target.value)} className="px-3 py-2 border border-line rounded-md text-sm bg-white capitalize">
+        <select value={moduleFilter} onChange={e => setModuleFilter(e.target.value)} className="px-3 py-2 border border-line rounded-md text-sm bg-paper-raised capitalize">
           {modules.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
         <Button variant="outline" size="sm" icon={<IconDownload size={14}/>} onClick={() => downloadCSV('activity-log.csv', filtered.map(l => ({ date: l.date, employee: l.employeeName, action: l.action, module: l.module, target: l.target, result: l.result, metadata: l.metadata })))}>Export</Button>
@@ -3464,11 +3482,11 @@ function Reports({ state }) {
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-paper-dim rounded-lg p-1 overflow-x-auto">
             {[['sales','Sales'],['inventory','Inventory'],['finance','Finance'],['insights','Insights']].map(([k,l]) => (
-              <button key={k} onClick={() => setTab(k)} className={'shrink-0 px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-white shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
+              <button key={k} onClick={() => setTab(k)} className={'shrink-0 px-3 py-1.5 rounded-md text-sm ' + (tab===k ? 'bg-paper-raised shadow-sm font-medium' : 'text-ink-muted')}>{l}</button>
             ))}
           </div>
           {branches.length > 1 && (
-            <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="text-sm border border-line rounded-md px-2 py-1.5 bg-white">
+            <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="text-sm border border-line rounded-md px-2 py-1.5 bg-paper-raised">
               <option value="All">All branches</option>
               {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
@@ -3484,8 +3502,8 @@ function Reports({ state }) {
           <Card title="Revenue, last 14 days"><BarChart data={last14} formatValue={v => fmtMoney(v, business.currency)} /></Card>
           <div className="grid md:grid-cols-3 gap-5">
             <Card title="Sales by employee">{employeeData.length ? <HBarList data={employeeData} formatValue={v => fmtMoney(v, business.currency)} /> : <p className="text-sm text-ink-muted">No data yet.</p>}</Card>
-            <Card title="Sales by payment method">{paymentData.length ? <HBarList data={paymentData} formatValue={v => fmtMoney(v, business.currency)} color="#2F7A54" /> : <p className="text-sm text-ink-muted">No data yet.</p>}</Card>
-            <Card title="Top products by revenue">{productData.length ? <HBarList data={productData.slice(0,6).map(p=>({label:p.name,value:p.revenue}))} formatValue={v => fmtMoney(v, business.currency)} color="#C08829" /> : <p className="text-sm text-ink-muted">No data yet.</p>}</Card>
+            <Card title="Sales by payment method">{paymentData.length ? <HBarList data={paymentData} formatValue={v => fmtMoney(v, business.currency)} color="var(--moss)" /> : <p className="text-sm text-ink-muted">No data yet.</p>}</Card>
+            <Card title="Top products by revenue">{productData.length ? <HBarList data={productData.slice(0,6).map(p=>({label:p.name,value:p.revenue}))} formatValue={v => fmtMoney(v, business.currency)} color="var(--brass)" /> : <p className="text-sm text-ink-muted">No data yet.</p>}</Card>
           </div>
           <Card title="Sales by product" padded={false}>
             <div className="overflow-x-auto">
@@ -3671,7 +3689,7 @@ function Settings({ state, actions, ctx }) {
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-line">
                 <div><p className="text-sm font-medium">Dark mode</p><p className="text-xs text-ink-muted">Switch the whole workspace to a dark theme.</p></div>
-                <button onClick={() => ctx.setDark(d => !d)} className={'w-11 h-6 rounded-full transition-colors relative ' + (ctx.dark ? 'bg-ink' : 'bg-line')}>
+                <button onClick={() => ctx.setDark(d => !d)} className={'w-11 h-6 rounded-full transition-colors relative ' + (ctx.dark ? 'bg-brass' : 'bg-line')}>
                   <span className={'absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ' + (ctx.dark ? 'translate-x-5' : 'translate-x-0.5')} />
                 </button>
               </div>
@@ -3705,7 +3723,7 @@ function Settings({ state, actions, ctx }) {
                 return (
                   <div key={m.key} className="flex items-center justify-between px-1 py-2.5 border-b border-line last:border-0">
                     <span className="text-sm">{m.label}</span>
-                    <button onClick={() => { actions.toggleModule(m.key); ctx.logActivity(ctx.currentEmployee?.name, (on ? 'Disabled' : 'Enabled') + ' module', 'settings', m.label, 'success', ''); }} className={'w-11 h-6 rounded-full transition-colors relative ' + (on ? 'bg-ink' : 'bg-line')}>
+                    <button onClick={() => { actions.toggleModule(m.key); ctx.logActivity(ctx.currentEmployee?.name, (on ? 'Disabled' : 'Enabled') + ' module', 'settings', m.label, 'success', ''); }} className={'w-11 h-6 rounded-full transition-colors relative ' + (on ? 'bg-brass' : 'bg-line')}>
                       <span className={'absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ' + (on ? 'translate-x-5' : 'translate-x-0.5')} />
                     </button>
                   </div>
