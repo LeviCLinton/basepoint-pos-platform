@@ -10,6 +10,43 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-check-compat.js"></script>
+<script>
+  // ⚠️ REPLACE THIS — paste the firebaseConfig object from
+  // Firebase Console → Project settings → General → Your apps → Web app.
+  const firebaseConfig = {
+    apiKey: "REPLACE_ME",
+    authDomain: "REPLACE_ME.firebaseapp.com",
+    projectId: "REPLACE_ME",
+    storageBucket: "REPLACE_ME.appspot.com",
+    messagingSenderId: "REPLACE_ME",
+    appId: "REPLACE_ME",
+  };
+  // ⚠️ REPLACE THIS — the reCAPTCHA v3 site key from
+  // Firebase Console → App Check → Apps → (your web app) → reCAPTCHA v3.
+  const RECAPTCHA_V3_SITE_KEY = "REPLACE_ME";
+
+  let fb = null;
+  try {
+    if (firebaseConfig.apiKey !== "REPLACE_ME") {
+      firebase.initializeApp(firebaseConfig);
+      if (RECAPTCHA_V3_SITE_KEY !== "REPLACE_ME") {
+        firebase.appCheck().activate(
+          new firebase.appCheck.ReCaptchaV3Provider(RECAPTCHA_V3_SITE_KEY),
+          true // isTokenAutoRefreshEnabled
+        );
+      }
+      fb = { auth: firebase.auth(), db: firebase.firestore(), functions: firebase.functions() };
+    }
+  } catch (e) {
+    console.error('Firebase failed to initialize — check firebaseConfig above.', e);
+  }
+  window.fb = fb; // null until firebaseConfig is filled in; the app falls back to local demo mode when null.
+</script>
 <script>
   tailwind.config = {
     darkMode: 'class',
@@ -1023,7 +1060,7 @@ function EmployeeBanner({ employee, roles }) {
   );
 }
 
-function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, roles, dark, setDark, setMobileOpen, notifications, page, allNav, onOpenPalette, online, branches, activeBranchId, setActiveBranchId }) {
+function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, roles, dark, setDark, setMobileOpen, notifications, page, allNav, onOpenPalette, online, branches, activeBranchId, setActiveBranchId, onFirebaseSignOut }) {
   const [showNotif, setShowNotif] = useState(false);
   const [showEmp, setShowEmp] = useState(false);
   const navItem = allNav.find(n => n.key === page) || {};
@@ -1082,17 +1119,22 @@ function Topbar({ business, currentEmployee, employees, setCurrentEmployeeId, ro
           </button>
           {showEmp && (
             <div className="absolute right-0 mt-2 w-64 bg-paper-raised border border-line rounded-lg shadow-xl p-1.5 rise-in max-h-80 overflow-y-auto">
-              <p className="text-xs font-semibold text-ink-muted px-2.5 py-1.5">Logged in as</p>
+              <p className="text-xs font-semibold text-ink-muted px-2.5 py-1.5">{onFirebaseSignOut ? 'Signed in as' : 'Logged in as'}</p>
               {activeEmployees.map(e => {
                 const role = roles.find(r => r.id === e.roleId);
                 return (
-                  <button key={e.id} onClick={() => { setCurrentEmployeeId(e.id); setShowEmp(false); }}
+                  <button key={e.id} onClick={() => { if (!onFirebaseSignOut) setCurrentEmployeeId(e.id); setShowEmp(false); }}
                     className={'w-full text-left px-2.5 py-2 rounded-md text-sm flex items-center justify-between hover:bg-paper-dim ' + (currentEmployee?.id === e.id ? 'font-medium' : '')}>
                     <span className="truncate"><span className="block">{e.name}</span><span className="block text-xs text-ink-muted">{role ? role.name : '—'}</span></span>
                     {currentEmployee?.id === e.id && <IconCheck size={14} className="shrink-0" />}
                   </button>
                 );
               })}
+              {onFirebaseSignOut && (
+                <button onClick={onFirebaseSignOut} className="w-full text-left px-2.5 py-2 rounded-md text-sm text-clay hover:bg-clay-light flex items-center gap-2 mt-1 border-t border-line pt-2.5">
+                  <IconLogout size={14}/> Sign out
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -3750,7 +3792,300 @@ function Settings({ state, actions, ctx }) {
 
 /* ============================== ROOT APP ============================== */
 
-function App() {
+/* ============================== FIREBASE AUTH GATE ============================== */
+/*
+  This replaces the old "just type a business name and go" onboarding with real
+  Firebase Authentication + the Cloud Functions backend. It's intentionally kept
+  separate from the local-demo Onboarding component above (which still exists,
+  untouched, for anyone opening this file without a firebaseConfig filled in —
+  see the check on window.fb in the <head> script).
+*/
+
+async function callFn(name, data) {
+  if (!window.fb) throw new Error('Firebase is not configured — fill in firebaseConfig at the top of the file.');
+  const fn = window.fb.functions.httpsCallable(name);
+  const res = await fn(data);
+  return res.data;
+}
+
+function AuthScreens({ onAuthed }) {
+  const [mode, setMode] = useState('signin'); // signin | signup-register | signup-join
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const handleSignIn = async () => {
+    setBusy(true); setError('');
+    try {
+      await window.fb.auth.signInWithEmailAndPassword(email, password);
+      onAuthed();
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  const handleRegisterBusiness = async () => {
+    setBusy(true); setError('');
+    try {
+      const cred = await window.fb.auth.createUserWithEmailAndPassword(email, password);
+      await cred.user.updateProfile({ displayName: ownerName });
+      await callFn('registerCompany', { businessName, ownerName });
+      await cred.user.getIdToken(true); // force-refresh so the new companyId/status claims take effect immediately
+      onAuthed();
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  const handleJoinWithCode = async () => {
+    setBusy(true); setError('');
+    try {
+      const cred = await window.fb.auth.createUserWithEmailAndPassword(email, password);
+      await cred.user.updateProfile({ displayName: ownerName });
+      const result = await callFn('joinWithCode', { code: joinCode });
+      onAuthed(result.companyId); // no claims exist yet (only approval sets those) — pass the companyId directly so the pending screen knows what to watch
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-paper px-4">
+      <div className="w-full max-w-sm bg-paper-raised border border-line rounded-2xl p-8 rise-in">
+        <h2 className="font-display text-2xl font-semibold text-ink mb-1">
+          {mode === 'signin' ? 'Sign in' : mode === 'signup-register' ? 'Register your business' : 'Join a company'}
+        </h2>
+        <p className="text-sm text-ink-muted mb-5">
+          {mode === 'signin' ? 'Welcome back.' : mode === 'signup-register' ? "You'll be the Owner of this business." : 'Enter the code your employer gave you.'}
+        </p>
+
+        <div className="space-y-3">
+          <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <Input label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} hint={mode !== 'signin' ? 'At least 6 characters.' : undefined} />
+          {mode === 'signup-register' && (
+            <>
+              <Input label="Your name" value={ownerName} onChange={e => setOwnerName(e.target.value)} />
+              <Input label="Business name" value={businessName} onChange={e => setBusinessName(e.target.value)} />
+            </>
+          )}
+          {mode === 'signup-join' && (
+            <>
+              <Input label="Your name" value={ownerName} onChange={e => setOwnerName(e.target.value)} />
+              <Input label="Company code" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} placeholder="e.g. 7K2QXP9M" />
+            </>
+          )}
+        </div>
+
+        {error && <p className="text-xs text-clay mt-3">{error}</p>}
+
+        <Button variant="brass" className="w-full mt-5" size="lg" disabled={busy}
+          onClick={mode === 'signin' ? handleSignIn : mode === 'signup-register' ? handleRegisterBusiness : handleJoinWithCode}>
+          {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : mode === 'signup-register' ? 'Create business' : 'Request to join'}
+        </Button>
+
+        <div className="flex flex-col gap-1.5 mt-5 text-center">
+          {mode !== 'signin' && <button className="text-xs text-ink-muted underline" onClick={() => setMode('signin')}>Already have an account? Sign in</button>}
+          {mode !== 'signup-register' && <button className="text-xs text-ink-muted underline" onClick={() => setMode('signup-register')}>Register a new business</button>}
+          {mode !== 'signup-join' && <button className="text-xs text-ink-muted underline" onClick={() => setMode('signup-join')}>Join an existing company with a code</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PendingApprovalScreen({ companyName, onSignOut }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-paper px-4 text-center">
+      <div className="max-w-sm">
+        <div className="w-14 h-14 rounded-full bg-brass-light text-brass-dark flex items-center justify-center mx-auto mb-4">
+          <IconClock size={26} />
+        </div>
+        <h2 className="font-display text-xl font-semibold mb-2">Waiting for approval</h2>
+        <p className="text-sm text-ink-muted mb-5">
+          Your request to join {companyName || 'this company'} is pending. An owner or manager needs to approve
+          it and assign you a role before you can sign in — this page will update automatically once that happens.
+        </p>
+        <Button variant="outline" onClick={onSignOut}>Sign out</Button>
+      </div>
+    </div>
+  );
+}
+
+function AccessDeniedScreen({ status, onSignOut }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-paper px-4 text-center">
+      <div className="max-w-sm">
+        <div className="w-14 h-14 rounded-full bg-clay-light text-clay flex items-center justify-center mx-auto mb-4">
+          <IconLock size={26} />
+        </div>
+        <h2 className="font-display text-xl font-semibold mb-2">Access {status}</h2>
+        <p className="text-sm text-ink-muted mb-5">Your account's access to this company is currently {status}. Contact an owner or manager if you believe this is a mistake.</p>
+        <Button variant="outline" onClick={onSignOut}>Sign out</Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The real entry point when window.fb is configured. Mirrors the shape the
+ * local-demo App() already expects (business/roles/products/etc via props)
+ * so App() doesn't need to be forked into two versions — see the
+ * `firebaseMode` prop threaded through App() below.
+ */
+function FirebaseGate() {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [fbUser, setFbUser] = useState(null);
+  const [claims, setClaims] = useState(null);
+  const [pendingCompanyId, setPendingCompanyId] = useState(null); // set when we've joined/requested but aren't approved yet — no claims exist for this
+  const [pendingEmployee, setPendingEmployee] = useState(null);
+  const [pendingCompanyName, setPendingCompanyName] = useState(null);
+  const [company, setCompany] = useState(null);
+  const [employee, setEmployee] = useState(null);
+  const [roles, setRoles] = useState([]);
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    if (!window.fb) { setAuthChecked(true); return; }
+    return window.fb.auth.onAuthStateChanged(async (user) => {
+      setFbUser(user);
+      if (user) {
+        const tokenResult = await user.getIdTokenResult();
+        setClaims(tokenResult.claims);
+      } else {
+        setClaims(null); setCompany(null); setEmployee(null); setRoles([]); setProducts([]);
+        setPendingCompanyId(null); setPendingEmployee(null); setPendingCompanyName(null);
+      }
+      setAuthChecked(true);
+    });
+  }, []);
+
+  const refreshClaims = async (companyIdHint) => {
+    if (!window.fb.auth.currentUser) return;
+    const tokenResult = await window.fb.auth.currentUser.getIdTokenResult(true);
+    setClaims(tokenResult.claims);
+    // approveEmployee is the only thing that ever sets companyId in claims — until
+    // that's happened, there's nothing to refresh into. Track the hint the join/
+    // accept-invite call gave us so we can still show a live "pending" screen.
+    if (!tokenResult.claims.companyId && companyIdHint) setPendingCompanyId(companyIdHint);
+  };
+
+  // While pending (no claims yet), watch our own employee doc directly using the
+  // companyId we were told about at join time — not from claims, since none exist.
+  // The moment an admin approves us (status -> 'active' server-side, which also
+  // sets our claims), we force a token refresh to pick that up and drop into the
+  // real app without the person needing to sign in again.
+  useEffect(() => {
+    if (!window.fb || !fbUser || !pendingCompanyId || (claims && claims.companyId)) return;
+    const db = window.fb.db;
+    const companyRef = db.collection('companies').doc(pendingCompanyId);
+    const unsubs = [
+      companyRef.onSnapshot(snap => setPendingCompanyName(snap.exists ? snap.data().name : null)),
+      companyRef.collection('employees').doc(fbUser.uid).onSnapshot(async snap => {
+        const data = snap.exists ? snap.data() : null;
+        setPendingEmployee(data);
+        if (data && data.status === 'active') await refreshClaims();
+      }),
+    ];
+    return () => unsubs.forEach(u => u());
+  }, [pendingCompanyId, fbUser, claims && claims.companyId]);
+
+  // Once we know the companyId (from claims) and have an active employee, keep
+  // company/roles/employee/products all live via onSnapshot — this is the
+  // realtime sync that's the whole point of choosing Firestore.
+  useEffect(() => {
+    if (!window.fb || !claims || !claims.companyId) return;
+    const companyId = claims.companyId;
+    const db = window.fb.db;
+    const unsubs = [
+      db.collection('companies').doc(companyId).onSnapshot(snap => setCompany(snap.exists ? { id: snap.id, ...snap.data() } : null)),
+      db.collection('companies').doc(companyId).collection('employees').doc(fbUser.uid).onSnapshot(snap => setEmployee(snap.exists ? { id: snap.id, ...snap.data() } : null)),
+      db.collection('companies').doc(companyId).collection('roles').onSnapshot(snap => setRoles(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
+      db.collection('companies').doc(companyId).collection('products').onSnapshot(snap => setProducts(snap.docs.map(d => ({
+        id: d.id, variants: [], isComposite: false, components: [], expiryDate: null, // fields the Firebase backend doesn't model yet — see integration guide
+        ...d.data(),
+      })))),
+    ];
+    return () => unsubs.forEach(u => u());
+  }, [claims && claims.companyId, fbUser]);
+
+  // If we're approved (Firestore says 'active') but a fresh token still hasn't
+  // picked up the claims, retry a few times before asking the person to help —
+  // covers the same server-side write-ordering race described above.
+  const [claimsRetryCount, setClaimsRetryCount] = useState(0);
+  useEffect(() => {
+    if (!pendingEmployee || pendingEmployee.status !== 'active' || (claims && claims.companyId)) { setClaimsRetryCount(0); return; }
+    if (claimsRetryCount >= 3) return;
+    const t = setTimeout(() => { refreshClaims(); setClaimsRetryCount(c => c + 1); }, 1500);
+    return () => clearTimeout(t);
+  }, [pendingEmployee && pendingEmployee.status, claims && claims.companyId, claimsRetryCount]);
+
+  if (!window.fb) return null; // caller falls back to the local-demo <App/>
+
+  if (!authChecked) return <div className="min-h-screen flex items-center justify-center bg-paper"><p className="text-sm text-ink-muted">Loading…</p></div>;
+
+  const handleSignOut = () => window.fb.auth.signOut();
+
+  if (!fbUser) return <AuthScreens onAuthed={refreshClaims} />;
+
+  if (!claims || !claims.companyId) {
+    if (pendingCompanyId) {
+      // 'active' here but claims still missing companyId is expected briefly: the
+      // Firestore write (which this listener sees) and the custom-claims write
+      // (which a fresh ID token reflects) are two separate operations server-side,
+      // and this listener's own refreshClaims() call above is already chasing the
+      // update — show a normal loading state, not an error, while that resolves.
+      if (pendingEmployee && pendingEmployee.status === 'active') {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-paper px-4 text-center">
+            <div className="max-w-sm">
+              <p className="text-sm text-ink-muted mb-4">You've been approved — finishing sign-in…</p>
+              {claimsRetryCount >= 3 && (
+                <>
+                  <p className="text-xs text-ink-muted mb-3">This is taking longer than expected.</p>
+                  <Button variant="outline" onClick={() => { setClaimsRetryCount(0); refreshClaims(); }}>Try again</Button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      }
+      if (pendingEmployee && ['suspended', 'terminated', 'rejected'].includes(pendingEmployee.status)) {
+        return <AccessDeniedScreen status={pendingEmployee.status} onSignOut={handleSignOut} />;
+      }
+      return <PendingApprovalScreen companyName={pendingCompanyName} onSignOut={handleSignOut} />;
+    }
+    return <AuthScreens onAuthed={refreshClaims} />;
+  }
+
+  if (!employee) return <div className="min-h-screen flex items-center justify-center bg-paper"><p className="text-sm text-ink-muted">Loading your account…</p></div>;
+  if (employee.status === 'pending') return <PendingApprovalScreen companyName={company?.name} onSignOut={handleSignOut} />;
+  if (employee.status !== 'active') return <AccessDeniedScreen status={employee.status} onSignOut={handleSignOut} />;
+
+  const firebaseActions = {
+    addProduct: (p) => window.fb.db.collection('companies').doc(claims.companyId).collection('products').add({
+      name: p.name, category: p.category, sku: p.sku, barcode: p.barcode || '', cost: p.cost, price: p.price,
+      stock: p.stock, reorderLevel: p.reorderLevel, unit: p.unit, status: 'active',
+    }),
+    updateProduct: (p) => window.fb.db.collection('companies').doc(claims.companyId).collection('products').doc(p.id).update({
+      name: p.name, category: p.category, sku: p.sku, barcode: p.barcode || '', cost: p.cost, price: p.price,
+      stock: p.stock, reorderLevel: p.reorderLevel, unit: p.unit,
+    }),
+    deleteProduct: (id) => window.fb.db.collection('companies').doc(claims.companyId).collection('products').doc(id).delete(),
+  };
+
+  return (
+    <App
+      firebaseMode={true}
+      fbCompany={company}
+      fbEmployee={employee}
+      fbRoles={roles}
+      fbProducts={products}
+      fbActions={firebaseActions}
+      onFirebaseSignOut={handleSignOut}
+    />
+  );
+}
+
+function App(props) {
+  const { firebaseMode, fbCompany, fbEmployee, fbRoles, fbProducts, fbActions, onFirebaseSignOut } = props || {};
   const [onboarded, setOnboarded] = useState(false);
   const [business, setBusiness] = useState(null);
   const [dark, setDark] = useState(false);
@@ -4067,7 +4402,7 @@ function App() {
     setFailedLogins(f => [{ id: uid('fl'), date: new Date().toISOString(), username: requester?.username || requester?.name || 'unknown', reason: 'Incorrect manager PIN for ' + permLabel(approval.permissionId) }, ...f]);
   };
 
-  if (!onboarded) return <Onboarding onComplete={handleOnboardComplete} />;
+  if (!firebaseMode && !onboarded) return <Onboarding onComplete={handleOnboardComplete} />;
 
   const handleSwitchEmployee = (id) => {
     const target = employees.find(e => e.id === id);
@@ -4076,12 +4411,25 @@ function App() {
     setCurrentEmployeeId(id);
   };
 
-  const currentEmployee = employees.find(e => e.id === currentEmployeeId) || employees[0];
-  const state = { business, products, suppliers, customers, employees, sales, purchases, expenses, inventoryMovements, settings, roles, departments, branches, auditLogs, failedLogins, loyaltySettings, coupons, tables, registerSessions, dashboardPrefs };
-  const ctx = { toast, setPage, dark, setDark, currentEmployee, requestApproval, logActivity, activeBranchId, setActiveBranchId };
+  // In Firebase mode, identity/roles/products come from the live Firestore
+  // listeners in FirebaseGate instead of local demo state — everything else
+  // (suppliers, customers, sales, expenses, etc.) is still local-only until
+  // those modules get the same treatment. See the integration guide.
+  const currentEmployee = firebaseMode ? fbEmployee : (employees.find(e => e.id === currentEmployeeId) || employees[0]);
+  const effectiveRoles = firebaseMode ? fbRoles : roles;
+  const effectiveEmployees = firebaseMode ? [fbEmployee].filter(Boolean) : employees;
+  const effectiveProducts = firebaseMode ? fbProducts : products;
+  const effectiveBusiness = firebaseMode ? {
+    name: fbCompany?.name || '…', currency: fbCompany?.currency || 'USD', taxRate: fbCompany?.taxRate || 0,
+    primaryColor: fbCompany?.primaryColor || '#16241D', type: fbCompany?.type || 'retail',
+  } : business;
 
-  const lowStock = products.filter(p => !p.isComposite && p.stock <= p.reorderLevel);
-  const expiringSoon = products.filter(p => p.expiryDate && new Date(p.expiryDate) > new Date() && new Date(p.expiryDate) < new Date(Date.now() + 3 * 86400000));
+  const state = { business: effectiveBusiness, products: effectiveProducts, suppliers, customers, employees: effectiveEmployees, sales, purchases, expenses, inventoryMovements, settings, roles: effectiveRoles, departments, branches, auditLogs, failedLogins, loyaltySettings, coupons, tables, registerSessions, dashboardPrefs };
+  const ctx = { toast, setPage, dark, setDark, currentEmployee, requestApproval, logActivity, activeBranchId, setActiveBranchId };
+  const effectiveActions = firebaseMode ? { ...actions, addProduct: fbActions.addProduct, updateProduct: fbActions.updateProduct, deleteProduct: fbActions.deleteProduct } : actions;
+
+  const lowStock = effectiveProducts.filter(p => !p.isComposite && p.stock <= p.reorderLevel);
+  const expiringSoon = effectiveProducts.filter(p => p.expiryDate && new Date(p.expiryDate) > new Date() && new Date(p.expiryDate) < new Date(Date.now() + 3 * 86400000));
   const pendingPO = purchases.filter(p => p.status === 'pending');
   const openRegisterSession = registerSessions.find(r => r.status === 'open');
   const notifications = [
@@ -4091,7 +4439,7 @@ function App() {
     ...(pendingSyncSales.length > 0 ? [{ message: pendingSyncSales.length + ' sale(s) queued offline, waiting to sync.', tone: 'warn' }] : []),
   ];
 
-  const pageProps = { state, actions, ctx };
+  const pageProps = { state, actions: effectiveActions, ctx };
   const pages = {
     dashboard: <Dashboard {...pageProps} />,
     pos: settings.enabledModules.pos ? <POS {...pageProps} /> : <ModuleDisabled name="Point of Sale" />,
@@ -4114,20 +4462,20 @@ function App() {
 
   const allNav = [...NAV_ITEMS, ...OPERATIONS_NAV_ITEMS, ...ADMIN_NAV_ITEMS];
   const activeNav = allNav.find(n => n.key === page);
-  const allowedPage = activeNav && (!activeNav.perm || can(currentEmployee, roles, activeNav.perm)) ? page : 'dashboard';
+  const allowedPage = activeNav && (!activeNav.perm || can(currentEmployee, effectiveRoles, activeNav.perm)) ? page : 'dashboard';
 
   return (
     <div className="min-h-screen flex bg-paper text-ink">
-      <Sidebar page={allowedPage} setPage={setPage} business={business} enabledModules={settings.enabledModules} currentEmployee={currentEmployee} roles={roles} collapsed={collapsed} setCollapsed={setCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <Sidebar page={allowedPage} setPage={setPage} business={effectiveBusiness} enabledModules={settings.enabledModules} currentEmployee={currentEmployee} roles={effectiveRoles} collapsed={collapsed} setCollapsed={setCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar business={business} currentEmployee={currentEmployee} employees={employees} setCurrentEmployeeId={handleSwitchEmployee} roles={roles} dark={dark} setDark={setDark} setMobileOpen={setMobileOpen} notifications={notifications} page={allowedPage} allNav={allNav} onOpenPalette={() => setPaletteOpen(true)} online={online} branches={branches} activeBranchId={activeBranchId} setActiveBranchId={setActiveBranchId} />
-        <EmployeeBanner employee={currentEmployee} roles={roles} />
+        <Topbar business={effectiveBusiness} currentEmployee={currentEmployee} employees={effectiveEmployees} setCurrentEmployeeId={handleSwitchEmployee} roles={effectiveRoles} dark={dark} setDark={setDark} setMobileOpen={setMobileOpen} notifications={notifications} page={allowedPage} allNav={allNav} onOpenPalette={() => setPaletteOpen(true)} online={online} branches={branches} activeBranchId={activeBranchId} setActiveBranchId={setActiveBranchId} onFirebaseSignOut={firebaseMode ? onFirebaseSignOut : null} />
+        <EmployeeBanner employee={currentEmployee} roles={effectiveRoles} />
         <main className="flex-1 p-4 md:p-6 rise-in">
           {pages[allowedPage]}
         </main>
       </div>
       <Toast toasts={toasts} />
-      <ManagerApprovalModal approval={approval} employees={employees} roles={roles}
+      <ManagerApprovalModal approval={approval} employees={effectiveEmployees} roles={effectiveRoles}
         onApprove={handleApprove} onCancel={handleCancelApproval} onFailedAttempt={handleFailedApproval} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} allNav={allNav} state={state} setPage={setPage} />
     </div>
@@ -4139,7 +4487,13 @@ function ModuleDisabled({ name }) {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+function Root() {
+  // window.fb is set in the <head> init script only once a real firebaseConfig
+  // has been filled in. Until then, this file behaves exactly as it always
+  // has — the local, in-memory demo. Fill in firebaseConfig to switch over.
+  return window.fb ? <FirebaseGate /> : <App />;
+}
+root.render(<Root />);
 
 </script>
 <script>
