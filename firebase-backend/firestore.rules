@@ -1,0 +1,266 @@
+rules_version = '2';
+
+// ============================================================================
+// FIRESTORE SECURITY RULES — this is the actual enforcement boundary.
+//
+// Everything in the Cloud Functions and client code is written assuming these
+// rules are the last word: a request that reaches Firestore directly (not
+// through a Cloud Function) is only as safe as what's written here. Nothing
+// in this file trusts anything the client sends except its authenticated uid
+// and custom claims (which only Cloud Functions, via the Admin SDK, can set).
+//
+// Two cheap identity facts live in custom claims (kept tiny — claims have a
+// 1000-byte total limit, so we do NOT put permission lists here):
+//   request.auth.token.companyId  — which company this user belongs to
+//   request.auth.token.status     — 'active' | 'suspended' | 'terminated' | 'pending'
+// Everything else (role, granular permissions) is looked up from Firestore
+// via get() inside the rules themselves. That costs extra reads but keeps
+// claims small and permissions changeable without forcing a token refresh
+// for every single permission tweak (only companyId/status changes need
+// that — see functions/src/lib/claims.js).
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function claimCompanyId() {
+      return request.auth.token.companyId;
+    }
+
+    function belongsToCompany(companyId) {
+      return isSignedIn() && claimCompanyId() == companyId;
+    }
+
+    function isActiveMember(companyId) {
+      return belongsToCompany(companyId) && request.auth.token.status == 'active';
+    }
+
+    function employeeDoc(companyId) {
+      return get(/databases/$(database)/documents/companies/$(companyId)/employees/$(request.auth.uid));
+    }
+
+    function isOwner(companyId) {
+      return isActiveMember(companyId) && employeeDoc(companyId).data.isOwner == true;
+    }
+
+    function roleDoc(companyId, roleId) {
+      return get(/databases/$(database)/documents/companies/$(companyId)/roles/$(roleId));
+    }
+
+    // The core RBAC check: owner short-circuits to true; everyone else needs
+    // the permission in (role permissions ∪ additional) minus restricted.
+    function hasPermission(companyId, permissionId) {
+      let emp = employeeDoc(companyId).data;
+      return isActiveMember(companyId) && (
+        emp.isOwner == true ||
+        (
+          permissionId in roleDoc(companyId, emp.roleId).data.permissions.toSet()
+            .union(('additionalPermissions' in emp) ? emp.additionalPermissions.toSet() : {}.keys())
+            .difference(('restrictedPermissions' in emp) ? emp.restrictedPermissions.toSet() : {}.keys())
+        )
+      );
+    }
+
+    function isUnchanged(field) {
+      return !(field in request.resource.data.diff(resource.data).affectedKeys());
+    }
+
+    // ---------------------------------------------------------------- companies
+
+    match /companies/{companyId} {
+      // Any active member can read their own company's profile.
+      allow read: if isActiveMember(companyId);
+
+      // Company creation happens ONLY through the registerCompany Cloud
+      // Function (Admin SDK bypasses rules) — never directly from a client,
+      // so ownership and the initial company id can't be forged.
+      allow create: if false;
+
+      // Owners can edit day-to-day profile fields, but never the fields that
+      // gate security/billing decisions — those change only via Cloud
+      // Functions (e.g. changePlan, transferOwnership).
+      allow update: if isOwner(companyId)
+        && isUnchanged('ownerUid')
+        && isUnchanged('subscription')
+        && isUnchanged('inviteCode');
+
+      allow delete: if false; // company deletion is a Cloud Function (data export, cleanup), never a direct delete.
+    }
+
+    // ---------------------------------------------------------------- roles
+
+    match /companies/{companyId}/roles/{roleId} {
+      allow read: if isActiveMember(companyId);
+
+      allow create, update: if hasPermission(companyId, 'employees.assignRoles')
+        // The Owner role itself is permanent and can't be retargeted or edited.
+        && (resource == null || resource.data.isOwner != true)
+        && request.resource.data.isOwner != true;
+
+      allow delete: if hasPermission(companyId, 'employees.assignRoles')
+        && resource.data.isOwner != true
+        && resource.data.isSystem != true;
+    }
+
+    // ---------------------------------------------------------------- employees (membership)
+
+    match /companies/{companyId}/employees/{employeeUid} {
+      // You can always read your own membership doc (to know your own status/role);
+      // reading OTHERS requires employees.view.
+      allow read: if belongsToCompany(companyId) &&
+        (request.auth.uid == employeeUid || hasPermission(companyId, 'employees.view'));
+
+      // Membership documents are created ONLY by Cloud Functions:
+      //  - registerCompany (creates the Owner's own doc)
+      //  - joinWithCode / acceptEmailInvite (creates a 'pending' doc)
+      // A client can never write itself into a company directly.
+      allow create: if false;
+
+      // A member may update a few harmless fields on their OWN doc (e.g. a
+      // "heartbeat" lastActiveAt). Nothing security-relevant is in this list.
+      allow update: if belongsToCompany(companyId) && request.auth.uid == employeeUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActiveAt']);
+
+      // Status changes, role changes, approval, additional/restricted
+      // permission edits — all of that is Cloud-Function-only (approveEmployee,
+      // setEmployeeStatus, assignRole). This is precisely what stops a
+      // cashier from ever promoting themselves.
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------- invitations & join codes
+
+    // Individual email invitations contain a token; never let clients list or
+    // read them directly (a client validates a code/token only by calling the
+    // joinWithCode / acceptEmailInvite Cloud Function, which reads them with
+    // the Admin SDK). This closes off token enumeration entirely.
+    match /companies/{companyId}/invitations/{invitationId} {
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------------- devices
+
+    match /companies/{companyId}/devices/{deviceId} {
+      allow read: if isActiveMember(companyId) &&
+        (resource.data.uid == request.auth.uid || hasPermission(companyId, 'devices.view'));
+
+      // Registration goes through the registerDevice Cloud Function so the
+      // subscription device-limit check can't be bypassed by writing
+      // straight to Firestore.
+      allow create: if false;
+
+      // A user can revoke their OWN device (e.g. "log this device out");
+      // revoking someone else's requires devices.manage. Only the `status`
+      // field may change this way.
+      allow update: if isActiveMember(companyId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'lastActiveAt'])
+        && (resource.data.uid == request.auth.uid || hasPermission(companyId, 'devices.manage'));
+
+      allow delete: if hasPermission(companyId, 'devices.manage');
+    }
+
+    // ---------------------------------------------------------------- sessions
+
+    match /companies/{companyId}/sessions/{sessionId} {
+      allow read: if isActiveMember(companyId) &&
+        (resource.data.uid == request.auth.uid || hasPermission(companyId, 'devices.manage'));
+      allow create: if false; // sessions are created by the recordLogin Cloud Function
+      allow update: if isActiveMember(companyId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'lastActiveAt'])
+        && (resource.data.uid == request.auth.uid || hasPermission(companyId, 'devices.manage'));
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------- audit logs
+
+    // Write-only from the server, read-only (with permission) from clients.
+    // No client write of any kind is ever allowed — not create, not update,
+    // not delete. This is what "immutable" actually means.
+    match /companies/{companyId}/auditLogs/{logId} {
+      allow read: if hasPermission(companyId, 'auditLogs.view');
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------- branches (future multi-branch support)
+
+    match /companies/{companyId}/branches/{branchId} {
+      allow read: if isActiveMember(companyId);
+      allow write: if hasPermission(companyId, 'settings.edit');
+    }
+
+    // ---------------------------------------------------------------- core business data
+
+    match /companies/{companyId}/products/{productId} {
+      allow read: if hasPermission(companyId, 'products.view');
+      allow create: if hasPermission(companyId, 'products.create');
+      allow update: if hasPermission(companyId, 'products.edit')
+        && (isUnchanged('price') || hasPermission(companyId, 'products.price.edit'))
+        && (isUnchanged('cost') || hasPermission(companyId, 'products.cost.edit'));
+      allow delete: if hasPermission(companyId, 'products.delete');
+    }
+
+    match /companies/{companyId}/inventory/{inventoryId} {
+      allow read: if hasPermission(companyId, 'inventory.view');
+      allow write: if hasPermission(companyId, 'inventory.adjust');
+    }
+
+    match /companies/{companyId}/sales/{saleId} {
+      allow read: if hasPermission(companyId, 'sales.view');
+      // Sales are created via a Cloud Function in production (stock deduction
+      // must be transactional and price must be re-read server-side — see
+      // the Express backend's sales route for why). Direct client creation
+      // is left open ONLY for a simple/offline-first mode; tighten this to
+      // `allow create: if false` once the createSale Cloud Function ships.
+      allow create: if hasPermission(companyId, 'sales.create');
+      allow update: if hasPermission(companyId, 'sales.refund')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow delete: if false;
+    }
+
+    match /companies/{companyId}/customers/{customerId} {
+      allow read: if hasPermission(companyId, 'customers.view');
+      allow create: if hasPermission(companyId, 'customers.create');
+      allow update: if hasPermission(companyId, 'customers.edit');
+      allow delete: if hasPermission(companyId, 'customers.delete');
+    }
+
+    match /companies/{companyId}/suppliers/{supplierId} {
+      allow read: if hasPermission(companyId, 'suppliers.view');
+      allow create: if hasPermission(companyId, 'suppliers.create');
+      allow update: if hasPermission(companyId, 'suppliers.edit');
+      allow delete: if hasPermission(companyId, 'suppliers.edit');
+    }
+
+    match /companies/{companyId}/orders/{orderId} {
+      allow read: if hasPermission(companyId, 'sales.view');
+      allow write: if hasPermission(companyId, 'sales.create');
+    }
+
+    match /companies/{companyId}/expenses/{expenseId} {
+      allow read: if hasPermission(companyId, 'expenses.view');
+      allow create: if hasPermission(companyId, 'expenses.create');
+      allow update: if hasPermission(companyId, 'expenses.approve');
+      allow delete: if hasPermission(companyId, 'expenses.approve');
+    }
+
+    match /companies/{companyId}/settings/{settingId} {
+      allow read: if isActiveMember(companyId);
+      allow write: if hasPermission(companyId, 'settings.edit');
+    }
+
+    // Anything under a company path not explicitly listed above is denied by
+    // default (there is no catch-all `allow` at the top), which is the
+    // correct failure mode: unknown collections are unreachable until someone
+    // deliberately writes a rule for them.
+
+    // Absolutely nothing outside /companies/** is readable or writable
+    // through these rules — there is no legitimate reason for a client to
+    // touch a top-level collection directly in this architecture.
+  }
+}
