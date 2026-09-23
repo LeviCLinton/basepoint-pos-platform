@@ -1,0 +1,56 @@
+Copyright (c) 2026 [YOUR NAME OR COMPANY NAME]. All Rights Reserved.
+
+This software and associated documentation files (the "Software"), including
+but not limited to the Basepoint point-of-sale application, its backend
+services, database schemas, Cloud Functions, Firestore Security Rules, and
+all related source code and assets, are the proprietary property of
+[YOUR NAME OR COMPANY NAME] ("the Owner").
+
+## No License Granted
+
+No license, right, or interest in the Software is granted to any person or
+entity by virtue of this Software being made available in this repository,
+whether publicly visible or not. Visibility of this source code on GitHub or
+any other platform does not constitute permission to use it.
+
+Without the Owner's prior written permission, no person may:
+
+- Use the Software, in whole or in part, for any purpose, commercial or
+  non-commercial
+- Copy, reproduce, or create derivative works based on the Software
+- Modify, adapt, translate, or reverse-engineer the Software
+- Distribute, sublicense, rent, lease, or sell the Software or any portion
+  of it
+- Deploy, host, or operate the Software (or a derivative of it) as a
+  product or service, including as part of a competing offering
+- Remove or alter any copyright, trademark, or other proprietary notice
+  contained in the Software
+
+## Contributions
+
+Any code, documentation, or other material submitted to this repository by
+a contributor (e.g., via pull request) is, upon submission, assigned to and
+becomes the sole property of the Owner, unless a separate written agreement
+between the contributor and the Owner states otherwise. By submitting a
+contribution, the contributor represents that they have the right to make
+this assignment.
+
+## No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+OWNER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE
+SOFTWARE OR ITS USE.
+
+## Licensing Inquiries
+
+To request permission to use, license, or partner around this Software,
+contact: [YOUR CONTACT EMAIL]
+
+---
+
+*This file is a template, not legal advice. Before relying on it for a real
+product, have a lawyer review it — especially the contribution-assignment
+clause if you plan to accept outside contributions, and the enforceability
+of "source-visible but all rights reserved" in your jurisdiction.*
